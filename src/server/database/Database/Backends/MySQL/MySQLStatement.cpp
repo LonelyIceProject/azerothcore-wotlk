@@ -396,8 +396,9 @@ std::unique_ptr<RowSet> MySQLFetchResult(MYSQL_RES* result)
     return rows;
 }
 
-std::unique_ptr<RowSet> MySQLFetchStatementResult(MYSQL_STMT* stmt, DbError& err)
+std::unique_ptr<RowSet> MySQLStatement::FetchResult(DbError& err)
 {
+    MYSQL_STMT* stmt = m_Mstmt;
     MYSQL_RES* metadata = mysql_stmt_result_metadata(stmt);
     if (!metadata)
     {
@@ -547,6 +548,11 @@ std::unique_ptr<RowSet> MySQLFetchStatementResult(MYSQL_STMT* stmt, DbError& err
             }
         }
     }
+
+    m_resultBind.swap(binds);
+    m_resultBuffers.swap(buffers);
+    m_resultLengths.swap(lengths);
+    m_resultIsNull.swap(isNull);
 
     /// All data is buffered, let go of mysql c api structures
     mysql_stmt_free_result(stmt);

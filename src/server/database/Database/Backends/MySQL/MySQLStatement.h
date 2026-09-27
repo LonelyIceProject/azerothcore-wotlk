@@ -39,6 +39,9 @@ public:
     MYSQL_STMT* GetSTMT() { return m_Mstmt; }
     MYSQL_BIND* GetBind() { return m_bind.data(); }
 
+    // Copies the stored result of the last execution into a RowSet (binary protocol).
+    std::unique_ptr<RowSet> FetchResult(DbError& err);
+
 private:
     void SetParameter(uint8 index, bool value);
     void SetParameter(uint8 index, std::nullptr_t /*value*/);
@@ -59,12 +62,17 @@ private:
     std::vector<unsigned long> m_lengths;
     std::string m_queryString;
 
+    // libmysql keeps pointers into the result bindings until the next mysql_stmt_bind_result
+    std::vector<MYSQL_BIND> m_resultBind;
+    std::vector<std::unique_ptr<char[]>> m_resultBuffers;
+    std::vector<unsigned long> m_resultLengths;
+    std::unique_ptr<MySQLBool[]> m_resultIsNull;
+
     MySQLStatement(MySQLStatement const& right) = delete;
     MySQLStatement& operator=(MySQLStatement const& right) = delete;
 };
 
-// Copy a stored result into a RowSet. Text protocol (mysql_store_result) and binary protocol (executed statement).
+// Copy a stored text protocol result (mysql_store_result) into a RowSet.
 std::unique_ptr<RowSet> MySQLFetchResult(MYSQL_RES* result);
-std::unique_ptr<RowSet> MySQLFetchStatementResult(MYSQL_STMT* stmt, DbError& err);
 
 #endif

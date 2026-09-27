@@ -340,7 +340,7 @@ std::unique_ptr<RowSet> MySQLBackend::Query(IDbStatement& stmt, std::span<Prepar
     if (!ExecuteStatement(stmt, params, err))
         return nullptr;
 
-    std::unique_ptr<RowSet> rows = MySQLFetchStatementResult(static_cast<MySQLStatement&>(stmt).GetSTMT(), err);
+    std::unique_ptr<RowSet> rows = static_cast<MySQLStatement&>(stmt).FetchResult(err);
 
     if (mysql_more_results(_mysql))
     {
