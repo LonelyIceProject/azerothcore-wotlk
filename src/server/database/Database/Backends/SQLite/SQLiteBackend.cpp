@@ -20,6 +20,7 @@
 #include "Log.h"
 #include "SQLiteStatement.h"
 #include "SqliteFunctions.h"
+#include "SqliteScriptTarget.h"
 #include "StringFormat.h"
 #include "Util.h"
 #include <sqlite3.h>
@@ -385,6 +386,14 @@ std::unique_ptr<RowSet> SQLiteBackend::QueryText(std::string_view sql, std::init
 std::string SQLiteBackend::ServerInfo() const
 {
     return sqlite3_libversion();
+}
+
+std::unique_ptr<IScriptTarget> SQLiteBackend::CreateScriptTarget()
+{
+    if (!_db)
+        return nullptr;
+
+    return std::make_unique<SqliteScriptTarget>(_db);
 }
 
 std::unique_ptr<IDbConnectionBackend> CreateSQLiteBackend(DatabaseConnectionInfo const& info)
