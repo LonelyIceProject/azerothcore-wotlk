@@ -53,6 +53,8 @@ namespace
                 rc = sqlite3_bind_double(stmt, index, v);
             else if constexpr (std::is_same_v<T, std::string>)
                 rc = sqlite3_bind_text64(stmt, index, v.data(), v.size(), SQLITE_TRANSIENT, SQLITE_UTF8);
+            else if (v.empty())
+                rc = sqlite3_bind_zeroblob(stmt, index, 0);
             else
                 rc = sqlite3_bind_blob64(stmt, index, v.data(), v.size(), SQLITE_TRANSIENT);
         }, value);
