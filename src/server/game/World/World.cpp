@@ -843,9 +843,9 @@ void World::SetInitialWorldSettings()
     // pussywizard:
     LOG_INFO("server.loading", "Deleting Invalid Mail Items...");
     LOG_INFO("server.loading", " ");
-    CharacterDatabase.Execute("DELETE mi FROM mail_items mi LEFT JOIN item_instance ii ON mi.item_guid = ii.guid WHERE ii.guid IS NULL");
-    CharacterDatabase.Execute("DELETE mi FROM mail_items mi LEFT JOIN mail m ON mi.mail_id = m.id WHERE m.id IS NULL");
-    CharacterDatabase.Execute("UPDATE mail m LEFT JOIN mail_items mi ON m.id = mi.mail_id SET m.has_items=0 WHERE m.has_items<>0 AND mi.mail_id IS NULL");
+    CharacterDatabase.Execute("DELETE FROM mail_items WHERE NOT EXISTS (SELECT 1 FROM item_instance ii WHERE ii.guid = mail_items.item_guid)");
+    CharacterDatabase.Execute("DELETE FROM mail_items WHERE NOT EXISTS (SELECT 1 FROM mail m WHERE m.id = mail_items.mail_id)");
+    CharacterDatabase.Execute("UPDATE mail SET has_items = 0 WHERE has_items <> 0 AND NOT EXISTS (SELECT 1 FROM mail_items mi WHERE mi.mail_id = mail.id)");
 
     ///- Handle outdated emails (delete/return)
     LOG_INFO("server.loading", "Returning Old Mails...");

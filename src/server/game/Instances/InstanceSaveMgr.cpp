@@ -266,22 +266,22 @@ void InstanceSaveMgr::LoadInstances()
     uint32 oldMSTime = getMSTime();
 
     // Delete character_instance for non-existent character
-    CharacterDatabase.DirectExecute("DELETE ci.* FROM character_instance AS ci LEFT JOIN characters AS c ON ci.guid = c.guid WHERE c.guid IS NULL");
+    CharacterDatabase.DirectExecute("DELETE FROM character_instance WHERE NOT EXISTS (SELECT 1 FROM characters c WHERE c.guid = character_instance.guid)");
 
     // Delete expired normal instances (normals expire after 3 days even if someone is still bound to them, cleared on startup)
     CharacterDatabase.DirectExecute("DELETE FROM instance WHERE resettime > 0 AND resettime < UNIX_TIMESTAMP()");
 
     // Delete instance with no binds
-    CharacterDatabase.DirectExecute("DELETE i.* FROM instance AS i LEFT JOIN character_instance AS ci ON i.id = ci.instance WHERE ci.guid IS NULL");
+    CharacterDatabase.DirectExecute("DELETE FROM instance WHERE NOT EXISTS (SELECT 1 FROM character_instance ci WHERE ci.instance = instance.id)");
 
     // Delete creature_respawn, gameobject_respawn and creature_instance for non-existent instance
     CharacterDatabase.DirectExecute("DELETE FROM creature_respawn WHERE instanceId > 0 AND instanceId NOT IN (SELECT id FROM instance)");
     CharacterDatabase.DirectExecute("DELETE FROM gameobject_respawn WHERE instanceId > 0 AND instanceId NOT IN (SELECT id FROM instance)");
-    CharacterDatabase.DirectExecute("DELETE tmp.* FROM character_instance AS tmp LEFT JOIN instance ON tmp.instance = instance.id WHERE tmp.instance > 0 AND instance.id IS NULL");
+    CharacterDatabase.DirectExecute("DELETE FROM character_instance WHERE instance > 0 AND NOT EXISTS (SELECT 1 FROM instance i WHERE i.id = character_instance.instance)");
 
     // Clean invalid references to instance
     CharacterDatabase.DirectExecute("UPDATE corpse SET instanceId = 0 WHERE instanceId > 0 AND instanceId NOT IN (SELECT id FROM instance)");
-    CharacterDatabase.DirectExecute("UPDATE characters AS tmp LEFT JOIN instance ON tmp.instance_id = instance.id SET tmp.instance_id = 0 WHERE tmp.instance_id > 0 AND instance.id IS NULL");
+    CharacterDatabase.DirectExecute("UPDATE characters SET instance_id = 0 WHERE instance_id > 0 AND NOT EXISTS (SELECT 1 FROM instance i WHERE i.id = characters.instance_id)");
 
     // Initialize instance id storage (Needs to be done after the trash has been clean out)
     sMapMgr->InitInstanceIds();
