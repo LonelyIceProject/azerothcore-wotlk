@@ -27,6 +27,7 @@
 using CommandArgs = std::vector<std::string_view>;
 
 int SelfTestCommand(CommandArgs const& args);
+int MigrateCommand(CommandArgs const& args);
 
 namespace
 {
@@ -45,7 +46,9 @@ namespace
             "                                               apply a MySQL dump or script\n"
             "  schema-diff --mysql-columns <tsv> --db <x.sqlite>\n"
             "                                               compare column sets and order\n"
-            "  verify --counts <tsv> --db <x.sqlite>        compare row counts per table\n",
+            "  verify --counts <tsv> --db <x.sqlite>        compare row counts per table\n"
+            "  migrate counts|empty|sequences|check|optimize --db <x.sqlite> [...]\n"
+            "                                               steps of the MySQL data migration\n",
             stderr);
         return 1;
     }
@@ -101,6 +104,7 @@ namespace
         { "load", LoadCommand },
         { "schema-diff", SchemaDiffCommand },
         { "verify", VerifyCommand },
+        { "migrate", MigrateCommand },
     };
 }
 
