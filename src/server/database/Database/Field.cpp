@@ -18,16 +18,11 @@
 #include "Field.h"
 #include "Errors.h"
 #include "Log.h"
-#include "MySQLHacks.h"
+#include "RowSet.h"
 #include "StringConvert.h"
+#include "StringFormat.h"
 
-Field::Field()
-{
-    data.value = nullptr;
-    data.length = 0;
-    data.raw = false;
-    meta = nullptr;
-}
+Field::Field() : _value(nullptr), _rows(nullptr), meta(nullptr) { }
 
 namespace
 {
@@ -46,6 +41,7 @@ namespace
             return "";
     }
 
+#ifdef ACORE_STRICT_DATABASE_TYPE_CHECKS
     template<typename T>
     inline bool IsCorrectFieldType(DatabaseFieldTypes type)
     {
@@ -100,69 +96,25 @@ namespace
 
         return false;
     }
+#endif
+}
 
-    inline Optional<std::string_view> GetCleanAliasName(std::string_view alias)
-    {
-        if (alias.empty())
-            return {};
-
-        auto pos = alias.find_first_of('(');
-        if (pos == std::string_view::npos)
-            return {};
-
-        alias.remove_suffix(alias.length() - pos);
-
-        return { alias };
-    }
-
-    template<typename T>
-    inline bool IsCorrectAlias(DatabaseFieldTypes type, std::string_view alias)
-    {
-        if constexpr (std::is_same_v<T, double>)
-        {
-            if ((StringEqualI(alias, "sum") || StringEqualI(alias, "avg")) && type == DatabaseFieldTypes::Decimal)
-                return true;
-
-            return false;
-        }
-
-        if constexpr (std::is_same_v<T, uint64>)
-        {
-            if (StringEqualI(alias, "count") && type == DatabaseFieldTypes::Int64)
-                return true;
-
-            return false;
-        }
-
-        if ((StringEqualI(alias, "min") || StringEqualI(alias, "max")) && IsCorrectFieldType<T>(type))
-        {
-            return true;
-        }
-
-        return false;
-    }
+bool Field::IsNull() const
+{
+    return !_value || _value->IsNull();
 }
 
 void Field::GetBinarySizeChecked(uint8* buf, std::size_t length) const
 {
-    ASSERT(data.value && (data.length == length), "Expected {}-byte binary blob, got {}data ({} bytes) instead", length, data.value ? "" : "no ", data.length);
-    memcpy(buf, data.value, length);
+    std::string_view bytes = IsNull() ? std::string_view() : _value->AsBytes();
+    ASSERT(!IsNull() && (bytes.size() == length), "Expected {}-byte binary blob, got {}data ({} bytes) instead", length, IsNull() ? "no " : "", bytes.size());
+    memcpy(buf, bytes.data(), length);
 }
 
-void Field::SetByteValue(char const* newValue, uint32 length)
+void Field::SetValue(FieldValue const* value, RowSet const* rows)
 {
-    // This value stores raw bytes that have to be explicitly cast later
-    data.value = newValue;
-    data.length = length;
-    data.raw = true;
-}
-
-void Field::SetStructuredValue(char const* newValue, uint32 length)
-{
-    // This value stores somewhat structured data that needs function style casting
-    data.value = newValue;
-    data.length = length;
-    data.raw = false;
+    _value = value;
+    _rows = rows;
 }
 
 bool Field::IsType(DatabaseFieldTypes type) const
@@ -196,7 +148,7 @@ T Field::GetData() const
 {
     static_assert(std::is_arithmetic_v<T>, "Unsurropt type for Field::GetData()");
 
-    if (!data.value)
+    if (IsNull())
         return GetDefaultValue<T>();
 
 #ifdef ACORE_STRICT_DATABASE_TYPE_CHECKS
@@ -207,71 +159,33 @@ T Field::GetData() const
     }
 #endif
 
-    Optional<T> result = {};
-
-    if (data.raw)
-        result = *reinterpret_cast<T const*>(data.value);
-    else
-        result = Acore::StringTo<T>(std::string_view(data.value, data.length));
-
-    // Correct double fields... this undefined behavior :/
-    if constexpr (std::is_same_v<T, double>)
+    switch (_value->Type)
     {
-        if (data.raw && !IsType(DatabaseFieldTypes::Decimal))
-            result = *reinterpret_cast<double const*>(data.value);
-        else
-            result = Acore::StringTo<float>(std::string_view(data.value, data.length));
+        case FieldValueType::Int:
+            return static_cast<T>(_value->Int);
+        case FieldValueType::Real:
+            return static_cast<T>(_value->Real);
+        default:
+            break;
     }
 
-    // Check -1 for *_dbc db tables
-    if constexpr (std::is_same_v<T, uint32>)
+    std::string_view text = _value->AsBytes();
+
+    if (Optional<T> result = Acore::StringTo<T>(text))
+        return *result;
+
+    if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>)
     {
-        std::string_view tableName{ meta->TableName };
+        if (Optional<int64> result = Acore::StringTo<int64>(text))
+            return static_cast<T>(*result);
 
-        if (!tableName.empty() && tableName.size() > 4)
-        {
-            auto signedResult = Acore::StringTo<int32>(std::string_view(data.value, data.length));
-
-            if (signedResult && !result && tableName.substr(tableName.length() - 4) == "_dbc")
-            {
-                LOG_DEBUG("sql.sql", "> Found incorrect value '{}' for type '{}' in _dbc table.", data.value, typeid(T).name());
-                LOG_DEBUG("sql.sql", "> Table name '{}'. Field name '{}'. Try return int32 value", meta->TableName, meta->Name);
-                return GetData<int32>();
-            }
-        }
+        if (Optional<double> result = Acore::StringTo<double>(text))
+            return static_cast<T>(*result);
     }
 
-    if (auto alias = GetCleanAliasName(meta->Alias))
-    {
-        if ((StringEqualI(*alias, "min") || StringEqualI(*alias, "max")) && !IsCorrectAlias<T>(meta->Type, *alias))
-        {
-            LogWrongType(__FUNCTION__, typeid(T).name());
-        }
-
-        if ((StringEqualI(*alias, "sum") || StringEqualI(*alias, "avg")) && !IsCorrectAlias<T>(meta->Type, *alias))
-        {
-            LogWrongType(__FUNCTION__, typeid(T).name());
-            LOG_WARN("sql.sql", "> Please use GetData<double>()");
-            return GetData<double>();
-        }
-
-        if (StringEqualI(*alias, "count") && !IsCorrectAlias<T>(meta->Type, *alias))
-        {
-            LogWrongType(__FUNCTION__, typeid(T).name());
-            LOG_WARN("sql.sql", "> Please use GetData<uint64>()");
-            return GetData<uint64>();
-        }
-    }
-
-    if (!result)
-    {
-        LOG_FATAL("sql.sql", "> Incorrect value '{}' for type '{}'. Value is raw ? '{}'", data.value, typeid(T).name(), data.raw);
-        LOG_FATAL("sql.sql", "> Table name '{}'. Field name '{}'", meta->TableName, meta->Name);
-        //ABORT();
-        return GetDefaultValue<T>();
-    }
-
-    return *result;
+    LOG_FATAL("sql.sql", "> Incorrect value '{}' for type '{}'", text, typeid(T).name());
+    LOG_FATAL("sql.sql", "> Table name '{}'. Field name '{}'", meta->TableName, meta->Name);
+    return GetDefaultValue<T>();
 }
 
 template bool Field::GetData() const;
@@ -288,40 +202,47 @@ template double Field::GetData() const;
 
 std::string Field::GetDataString() const
 {
-    if (!data.value)
+    if (IsNull())
         return "";
 
 #ifdef ACORE_STRICT_DATABASE_TYPE_CHECKS
-    if (IsNumeric() && data.raw)
-    {
+    if (IsNumeric() && !_value->IsBytes())
         LogWrongType(__FUNCTION__, "std::string");
-        return "";
-    }
 #endif
 
-    return { data.value, data.length };
+    switch (_value->Type)
+    {
+        case FieldValueType::Int:
+            return Acore::StringFormat("{}", _value->Int);
+        case FieldValueType::Real:
+            if (meta->Type == DatabaseFieldTypes::Float)
+                return Acore::StringFormat("{}", static_cast<float>(_value->Real));
+            return Acore::StringFormat("{}", _value->Real);
+        default:
+            return std::string(_value->AsBytes());
+    }
 }
 
 std::string_view Field::GetDataStringView() const
 {
-    if (!data.value)
+    if (IsNull())
         return {};
+
+    if (_value->IsBytes())
+        return _value->AsBytes();
 
 #ifdef ACORE_STRICT_DATABASE_TYPE_CHECKS
-    if (IsNumeric() && data.raw)
-    {
+    if (IsNumeric())
         LogWrongType(__FUNCTION__, "std::string_view");
-        return {};
-    }
 #endif
 
-    return { data.value, data.length };
+    return _rows ? _rows->KeepText(GetDataString()) : std::string_view();
 }
 
 Binary Field::GetDataBinary() const
 {
     Binary result = {};
-    if (!data.value || !data.length)
+    if (IsNull() || !_value->IsBytes() || !_value->Size)
         return result;
 
 #ifdef ACORE_STRICT_DATABASE_TYPE_CHECKS
@@ -332,7 +253,7 @@ Binary Field::GetDataBinary() const
     }
 #endif
 
-    result.resize(data.length);
-    memcpy(result.data(), data.value, data.length);
+    std::string_view bytes = _value->AsBytes();
+    result.assign(bytes.begin(), bytes.end());
     return result;
 }

@@ -18,6 +18,7 @@
 #ifndef _TRANSACTION_H
 #define _TRANSACTION_H
 
+#include "DatabaseBackend.h"
 #include "DatabaseEnvFwd.h"
 #include "Define.h"
 #include "SQLOperation.h"
@@ -30,7 +31,7 @@
 class AC_DATABASE_API TransactionBase
 {
     friend class TransactionTask;
-    friend class MySQLConnection;
+    friend class DatabaseConnection;
     friend class ModuleDatabasePool;
 
     template <typename T>
@@ -86,7 +87,7 @@ public:
 
 protected:
     bool Execute() override;
-    int TryExecute();
+    DbErrorClass TryExecute();
     void CleanupOnFailure();
 
     std::shared_ptr<TransactionBase> m_trans;

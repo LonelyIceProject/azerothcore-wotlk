@@ -16,7 +16,7 @@
  */
 
 #include "AdhocStatement.h"
-#include "MySQLConnection.h"
+#include "DatabaseConnection.h"
 #include "QueryResult.h"
 
 /*! Basic, ad-hoc queries. */

@@ -83,11 +83,4 @@ using WorldDatabaseQueryHolder = SQLQueryHolder<WorldDatabaseConnection>;
 
 class SQLQueryHolderCallback;
 
-// mysql
-struct MySQLHandle;
-struct MySQLResult;
-struct MySQLField;
-struct MySQLBind;
-struct MySQLStmt;
-
 #endif // DatabaseEnvFwd_h__

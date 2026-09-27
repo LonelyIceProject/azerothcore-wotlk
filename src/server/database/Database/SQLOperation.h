@@ -36,7 +36,7 @@ struct SQLElementData
     SQLElementDataType type;
 };
 
-class MySQLConnection;
+class DatabaseConnection;
 
 class AC_DATABASE_API SQLOperation
 {
@@ -51,9 +51,9 @@ public:
     }
 
     virtual bool Execute() = 0;
-    virtual void SetConnection(MySQLConnection* con) { m_conn = con; }
+    virtual void SetConnection(DatabaseConnection* con) { m_conn = con; }
 
-    MySQLConnection* m_conn{nullptr};
+    DatabaseConnection* m_conn{nullptr};
 
 private:
     SQLOperation(SQLOperation const& right) = delete;

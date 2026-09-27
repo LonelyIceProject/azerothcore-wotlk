@@ -15,20 +15,46 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "MySQLThreading.h"
-#include "MySQLWorkaround.h"
+#include "DatabaseLibrary.h"
+#include "StringFormat.h"
 
-void MySQL::Library_Init()
+#ifdef ACORE_WITH_MYSQL
+#include "MySQLBackend.h"
+#endif
+
+#ifdef ACORE_WITH_SQLITE
+#include <sqlite3.h>
+#endif
+
+void DatabaseLibrary::Init()
 {
-    mysql_library_init(-1, nullptr, nullptr);
+#ifdef ACORE_WITH_MYSQL
+    MySQLLibrary::Init();
+#endif
+#ifdef ACORE_WITH_SQLITE
+    sqlite3_initialize();
+#endif
 }
 
-void MySQL::Library_End()
+void DatabaseLibrary::End()
 {
-    mysql_library_end();
+#ifdef ACORE_WITH_MYSQL
+    MySQLLibrary::End();
+#endif
 }
 
-uint32 MySQL::GetLibraryVersion()
+std::string DatabaseLibrary::Version()
 {
-    return MYSQL_VERSION_ID;
+    std::string version;
+
+#ifdef ACORE_WITH_MYSQL
+    version = MySQLLibrary::Version();
+#endif
+#ifdef ACORE_WITH_SQLITE
+    if (!version.empty())
+        version += ", ";
+    version += Acore::StringFormat("SQLite {}", sqlite3_libversion());
+#endif
+
+    return version;
 }

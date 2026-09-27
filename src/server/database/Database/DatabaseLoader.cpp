@@ -20,9 +20,8 @@
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
 #include "Duration.h"
+#include "IDbConnectionBackend.h"
 #include "Log.h"
-#include <errmsg.h>
-#include <mysqld_error.h>
 #include <thread>
 #include <string_view>
 namespace
@@ -76,10 +75,11 @@ DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::st
 
         pool.SetConnectionInfo(dbString, asyncThreads, synchThreads);
 
-        if (uint32 error = pool.Open())
+        DbError error = pool.Open();
+        if (error.IsError())
         {
             // Try reconnect
-            if (error == CR_CONNECTION_ERROR)
+            if (error.cls == DbErrorClass::ConnectionLost && GetBackendCaps(pool.GetBackend()).supportsReconnect)
             {
                 uint8 const attempts = sConfigMgr->GetOption<uint8>("Database.Reconnect.Attempts", 20);
                 Seconds reconnectSeconds = Seconds(sConfigMgr->GetOption<uint8>("Database.Reconnect.Seconds", 15));
@@ -91,7 +91,7 @@ DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::st
                     std::this_thread::sleep_for(reconnectSeconds);
                     error = pool.Open();
 
-                    if (error == CR_CONNECTION_ERROR)
+                    if (error.cls == DbErrorClass::ConnectionLost)
                     {
                         reconnectCount++;
                     }
@@ -103,20 +103,20 @@ DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::st
             }
 
             // Database does not exist
-            if ((error == ER_BAD_DB_ERROR) && updatesEnabledForThis && _autoSetup)
+            if ((error.cls == DbErrorClass::DatabaseMissing) && updatesEnabledForThis && _autoSetup)
             {
                 // Try to create the database and connect again if auto setup is enabled
-                if (DBUpdater<T>::Create(pool) && (!pool.Open()))
+                if (DBUpdater<T>::Create(pool))
                 {
-                    error = 0;
+                    error = pool.Open(true);
                 }
             }
 
             // If the error wasn't handled quit
-            if (error)
+            if (error.IsError())
             {
-                LOG_ERROR(_logger, "DatabasePool {} NOT opened. There were errors opening the MySQL connections. "
-                          "Check your log file for specific errors", name);
+                LOG_ERROR(_logger, "DatabasePool {} NOT opened. There were errors opening the {} connections. "
+                          "Check your log file for specific errors", name, DatabaseBackendName(pool.GetBackend()));
 
                 return false;
             }

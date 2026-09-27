@@ -18,13 +18,13 @@
 #include "Chat.h"
 #include "CommandScript.h"
 #include "Common.h"
+#include "DatabaseLibrary.h"
 #include "GameTime.h"
 #include "GitRevision.h"
 #include "Log.h"
 #include "MapMgr.h"
 #include "ModuleMgr.h"
 #include "MotdMgr.h"
-#include "MySQLThreading.h"
 #include "RBAC.h"
 #include "Realm.h"
 #include "ScriptMgr.h"
@@ -135,7 +135,7 @@ public:
         handler->PSendSysMessage("Using Boost version: {}.{}.{}", BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
         handler->PSendSysMessage("Using CMake version: {}", GitRevision::GetCMakeVersion());
 
-        handler->PSendSysMessage("Using MySQL version: {}", MySQL::GetLibraryVersion());
+        handler->PSendSysMessage("Using database libraries: {}", DatabaseLibrary::Version());
         handler->PSendSysMessage("Found MySQL Executable: {}", GitRevision::GetMySQLExecutable());
 
         handler->PSendSysMessage("Compiled on: {}", GitRevision::GetHostOSVersion());

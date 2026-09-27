@@ -18,7 +18,7 @@
 #ifndef _WORLDDATABASE_H
 #define _WORLDDATABASE_H
 
-#include "MySQLConnection.h"
+#include "DatabaseConnection.h"
 
 enum WorldDatabaseStatements : uint32
 {
@@ -123,14 +123,14 @@ enum WorldDatabaseStatements : uint32
     MAX_WORLDDATABASE_STATEMENTS
 };
 
-class AC_DATABASE_API WorldDatabaseConnection : public MySQLConnection
+class AC_DATABASE_API WorldDatabaseConnection : public DatabaseConnection
 {
 public:
     typedef WorldDatabaseStatements Statements;
 
     //- Constructors for sync and async connections
-    WorldDatabaseConnection(MySQLConnectionInfo& connInfo);
-    WorldDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, MySQLConnectionInfo& connInfo);
+    WorldDatabaseConnection(DatabaseConnectionInfo& connInfo);
+    WorldDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, DatabaseConnectionInfo& connInfo);
     ~WorldDatabaseConnection() override;
 
     //- Loads database type specific prepared statements

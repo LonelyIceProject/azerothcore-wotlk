@@ -18,7 +18,7 @@
 #ifndef _CHARACTERDATABASE_H
 #define _CHARACTERDATABASE_H
 
-#include "MySQLConnection.h"
+#include "DatabaseConnection.h"
 
 enum CharacterDatabaseStatements : uint32
 {
@@ -551,19 +551,19 @@ enum CharacterDatabaseStatements : uint32
     MAX_CHARACTERDATABASE_STATEMENTS
 };
 
-class AC_DATABASE_API CharacterDatabaseConnection : public MySQLConnection
+class AC_DATABASE_API CharacterDatabaseConnection : public DatabaseConnection
 {
 public:
     typedef CharacterDatabaseStatements Statements;
 
     //- Constructors for sync and async connections
-    CharacterDatabaseConnection(MySQLConnectionInfo& connInfo);
-    CharacterDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, MySQLConnectionInfo& connInfo);
+    CharacterDatabaseConnection(DatabaseConnectionInfo& connInfo);
+    CharacterDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, DatabaseConnectionInfo& connInfo);
     ~CharacterDatabaseConnection() override;
 
     //- Loads database type specific prepared statements
     void DoPrepareStatements() override;
-    void DoPrepareStatementOverrides();
+    void DoPrepareStatementOverrides() override;
 };
 
 #endif

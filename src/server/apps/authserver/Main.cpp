@@ -29,12 +29,12 @@
 #include "Config.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
+#include "DatabaseLibrary.h"
 #include "DatabaseLoader.h"
 #include "GitRevision.h"
 #include "IPLocation.h"
 #include "IoContext.h"
 #include "Log.h"
-#include "MySQLThreading.h"
 #include "OpenSSLCrypto.h"
 #include "ProcessPriority.h"
 #include "RealmList.h"
@@ -221,7 +221,7 @@ int main(int argc, char** argv)
 /// Initialize connection to the database
 bool StartDB()
 {
-    MySQL::Library_Init();
+    DatabaseLibrary::Init();
 
     // Load databases
     // NOTE: While authserver is singlethreaded you should keep synch_threads == 1.
@@ -242,7 +242,7 @@ bool StartDB()
 void StopDB()
 {
     LoginDatabase.Close();
-    MySQL::Library_End();
+    DatabaseLibrary::End();
 }
 
 void SignalHandler(std::weak_ptr<Acore::Asio::IoContext> ioContextRef, boost::system::error_code const& error, int /*signalNumber*/)

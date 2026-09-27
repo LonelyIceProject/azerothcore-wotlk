@@ -18,7 +18,7 @@
 #ifndef _LOGINDATABASE_H
 #define _LOGINDATABASE_H
 
-#include "MySQLConnection.h"
+#include "DatabaseConnection.h"
 
 enum LoginDatabaseStatements : uint32
 {
@@ -148,19 +148,19 @@ enum LoginDatabaseStatements : uint32
     MAX_LOGINDATABASE_STATEMENTS
 };
 
-class AC_DATABASE_API LoginDatabaseConnection : public MySQLConnection
+class AC_DATABASE_API LoginDatabaseConnection : public DatabaseConnection
 {
 public:
     typedef LoginDatabaseStatements Statements;
 
     //- Constructors for sync and async connections
-    LoginDatabaseConnection(MySQLConnectionInfo& connInfo);
-    LoginDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, MySQLConnectionInfo& connInfo);
+    LoginDatabaseConnection(DatabaseConnectionInfo& connInfo);
+    LoginDatabaseConnection(ProducerConsumerQueue<SQLOperation*>* q, DatabaseConnectionInfo& connInfo);
     ~LoginDatabaseConnection() override;
 
     //- Loads database type specific prepared statements
     void DoPrepareStatements() override;
-    void DoPrepareStatementOverrides();
+    void DoPrepareStatementOverrides() override;
 };
 
 #endif

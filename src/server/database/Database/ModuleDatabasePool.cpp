@@ -17,18 +17,15 @@
 
 #include "ModuleDatabasePool.h"
 #include "Errors.h"
+#include "IDbConnectionBackend.h"
 #include "Log.h"
-#include "MySQLConnection.h"
-#include "MySQLPreparedStatement.h"
 #include "QueryResult.h"
 #include "Transaction.h"
-#include <errmsg.h>
 #include <limits>
-#include <mysqld_error.h>
 #include <thread>
 
 ModuleDatabasePool::ModuleDatabasePool()
-    : _connectionInfo(""), _synchThreads(0)
+    : _synchThreads(0)
 {
 }
 
@@ -39,37 +36,52 @@ ModuleDatabasePool::~ModuleDatabasePool()
 
 void ModuleDatabasePool::SetConnectionInfo(std::string_view infoString, uint8 synchThreads)
 {
-    _connectionInfo = MySQLConnectionInfo(infoString);
+    _connectionInfo = DatabaseConnectionInfo(infoString);
     _synchThreads = synchThreads;
 }
 
 uint32 ModuleDatabasePool::Open()
 {
+    DbError const error = OpenEx();
+    if (!error.IsError())
+        return 0;
+
+    return error.native ? uint32(error.native) : 1;
+}
+
+DbError ModuleDatabasePool::OpenEx(bool create)
+{
+    if (!_connectionInfo.IsValid())
+    {
+        LOG_ERROR("sql.driver", "ModuleDatabasePool: database `{}` has an invalid connection string.", _connectionInfo.database);
+        return { DbErrorClass::Other, 0, "invalid connection string" };
+    }
+
     if (!_synchThreads)
     {
         LOG_ERROR("sql.driver", "ModuleDatabasePool: database `{}` was configured with 0 synchronous connections, "
             "at least one is required.", _connectionInfo.database);
-        return CR_UNKNOWN_ERROR;
+        return { DbErrorClass::Other, 0, "no synchronous connections configured" };
     }
 
     Close();
 
     for (uint8 i = 0; i < _synchThreads; ++i)
     {
-        auto conn = std::unique_ptr<MySQLConnection>(CreateConnection(_connectionInfo));
-        uint32 result = conn->Open();
-        if (result != 0)
+        auto conn = std::unique_ptr<DatabaseConnection>(CreateConnection(_connectionInfo));
+        DbError const error = conn->Open(create);
+        if (error.IsError())
         {
             LOG_ERROR("sql.driver", "ModuleDatabasePool: could not open connection {}/{} to database `{}`, error {}",
-                i + 1, _synchThreads, _connectionInfo.database, result);
+                i + 1, _synchThreads, _connectionInfo.database, error.native);
             Close();
-            return result;
+            return error;
         }
 
         _connections.push_back(std::move(conn));
     }
 
-    return 0;
+    return {};
 }
 
 bool ModuleDatabasePool::PrepareStatements()
@@ -89,11 +101,11 @@ bool ModuleDatabasePool::PrepareStatements()
 
     if (!_connections.empty())
     {
-        MySQLConnection const* conn = _connections.front().get();
+        DatabaseConnection const* conn = _connections.front().get();
         _preparedStatementSize.assign(conn->m_stmts.size(), 0);
         for (std::size_t i = 0; i < conn->m_stmts.size(); ++i)
         {
-            if (MySQLPreparedStatement* stmt = conn->m_stmts[i].get())
+            if (IDbStatement* stmt = conn->m_stmts[i].get())
             {
                 uint32 const paramCount = stmt->GetParameterCount();
                 ASSERT(paramCount < std::numeric_limits<uint8>::max());
@@ -127,7 +139,7 @@ void ModuleDatabasePool::DirectExecute(std::string_view sql)
     if (_connections.empty())
         return;
 
-    MySQLConnection* conn = GetFreeConnection();
+    DatabaseConnection* conn = GetFreeConnection();
     conn->Execute(sql);
     conn->Unlock();
 }
@@ -137,7 +149,7 @@ QueryResult ModuleDatabasePool::Query(std::string_view sql)
     if (_connections.empty())
         return QueryResult(nullptr);
 
-    MySQLConnection* conn = GetFreeConnection();
+    DatabaseConnection* conn = GetFreeConnection();
     ResultSet* result = conn->Query(sql);
     conn->Unlock();
 
@@ -160,7 +172,7 @@ void ModuleDatabasePool::Execute(PreparedStatementBase* stmt)
         return;
     }
 
-    MySQLConnection* conn = GetFreeConnection();
+    DatabaseConnection* conn = GetFreeConnection();
     conn->Execute(stmt);
     conn->Unlock();
 
@@ -175,7 +187,7 @@ PreparedQueryResult ModuleDatabasePool::Query(PreparedStatementBase* stmt)
         return PreparedQueryResult(nullptr);
     }
 
-    MySQLConnection* conn = GetFreeConnection();
+    DatabaseConnection* conn = GetFreeConnection();
     PreparedResultSet* result = conn->Query(stmt);
     conn->Unlock();
 
@@ -201,21 +213,21 @@ void ModuleDatabasePool::DirectCommitTransaction(std::shared_ptr<TransactionBase
     if (_connections.empty())
         return;
 
-    MySQLConnection* conn = GetFreeConnection();
-    int errorCode = conn->ExecuteTransaction(transaction);
-    if (!errorCode)
+    DatabaseConnection* conn = GetFreeConnection();
+    DbErrorClass errorClass = conn->ExecuteTransaction(transaction);
+    if (errorClass == DbErrorClass::None)
     {
         conn->Unlock();
         return;
     }
 
-    //! Handle MySQL Errno 1213 without extending deadlock to the core itself
-    if (errorCode == ER_LOCK_DEADLOCK)
+    //! Handle deadlocks and busy databases without extending deadlock to the core itself
+    if (errorClass == DbErrorClass::Retryable)
     {
         uint8 constexpr loopBreaker = 5;
         for (uint8 i = 0; i < loopBreaker; ++i)
         {
-            if (!conn->ExecuteTransaction(transaction))
+            if (conn->ExecuteTransaction(transaction) == DbErrorClass::None)
                 break;
         }
     }
@@ -226,6 +238,9 @@ void ModuleDatabasePool::DirectCommitTransaction(std::shared_ptr<TransactionBase
 
 void ModuleDatabasePool::KeepAlive()
 {
+    if (!GetBackendCaps(_connectionInfo.backend).needsKeepAlive)
+        return;
+
     //! Ping connections that are not busy; a locked connection is in use and alive.
     for (auto const& conn : _connections)
     {
@@ -237,11 +252,11 @@ void ModuleDatabasePool::KeepAlive()
     }
 }
 
-MySQLConnection* ModuleDatabasePool::GetFreeConnection()
+DatabaseConnection* ModuleDatabasePool::GetFreeConnection()
 {
     uint8 i = 0;
     auto const num_cons = _connections.size();
-    MySQLConnection* connection = nullptr;
+    DatabaseConnection* connection = nullptr;
 
     //! Block forever until a connection is free
     for (;;)
@@ -258,7 +273,17 @@ MySQLConnection* ModuleDatabasePool::GetFreeConnection()
     return connection;
 }
 
-MySQLConnectionInfo const* ModuleDatabasePool::GetConnectionInfo() const
+DatabaseConnectionInfo const* ModuleDatabasePool::GetConnectionInfo() const
 {
     return &_connectionInfo;
+}
+
+void ModuleDatabasePool::RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn)
+{
+    if (_connections.empty())
+        return;
+
+    DatabaseConnection* conn = GetFreeConnection();
+    fn(*conn);
+    conn->Unlock();
 }

@@ -18,12 +18,13 @@
 #ifndef MODULE_DATABASE_POOL_H
 #define MODULE_DATABASE_POOL_H
 
+#include "DatabaseConnection.h"
 #include "DatabaseEnvFwd.h"
 #include "DatabaseUpdatePool.h"
 #include "Define.h"
-#include "MySQLConnection.h"
 #include "PreparedStatement.h"
 #include "StringFormat.h"
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -31,7 +32,7 @@
 class TransactionBase;
 
 // Base class for module-owned database pools. A module derives from this,
-// implements CreateConnection with its own MySQLConnection subclass (carrying
+// implements CreateConnection with its own DatabaseConnection subclass (carrying
 // the module's prepared statements), and gets open/execute/query plus DBUpdater
 // compatibility without any core-side registration.
 //
@@ -48,8 +49,9 @@ public:
     void SetConnectionInfo(std::string_view infoString, uint8 synchThreads);
 
     //! Opens the configured number of synchronous connections.
-    //! Returns 0 on success, or the MySQL error code of the first failed connection.
+    //! Returns 0 on success, or the native error code of the first failed connection.
     uint32 Open();
+    DbError OpenEx(bool create = false);
 
     //! Prepares the connection statements. Call after the schema exists
     //! (post create/populate/update), mirroring DatabaseLoader's ordering.
@@ -60,7 +62,11 @@ public:
     void Execute(std::string_view sql);
     void DirectExecute(std::string_view sql) override;
     QueryResult Query(std::string_view sql) override;
-    MySQLConnectionInfo const* GetConnectionInfo() const override;
+    DatabaseConnectionInfo const* GetConnectionInfo() const override;
+    [[nodiscard]] DatabaseBackend GetBackend() const { return _connectionInfo.backend; }
+
+    //! Runs fn on a free connection, which stays locked for the duration of the call.
+    void RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn);
 
     //! Format variants, mirroring DatabaseWorkerPool.
     template<typename... Args>
@@ -108,13 +114,13 @@ public:
     void KeepAlive();
 
 protected:
-    virtual MySQLConnection* CreateConnection(MySQLConnectionInfo& connInfo) = 0;
+    virtual DatabaseConnection* CreateConnection(DatabaseConnectionInfo& connInfo) = 0;
 
 private:
-    MySQLConnection* GetFreeConnection();
+    DatabaseConnection* GetFreeConnection();
 
-    MySQLConnectionInfo _connectionInfo;
-    std::vector<std::unique_ptr<MySQLConnection>> _connections;
+    DatabaseConnectionInfo _connectionInfo;
+    std::vector<std::unique_ptr<DatabaseConnection>> _connections;
     std::vector<uint8> _preparedStatementSize;
     uint8 _synchThreads;
 };

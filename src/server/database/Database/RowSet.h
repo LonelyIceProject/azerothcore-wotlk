@@ -22,7 +22,9 @@
 #include "Field.h"
 #include <algorithm>
 #include <cstring>
+#include <deque>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -100,6 +102,9 @@ public:
         cell.Bytes = Store(data, size, false);
     }
 
+    // Keeps text derived from a cell (a formatted number) alive for the RowSet lifetime.
+    std::string_view KeepText(std::string text) const { return _derivedText.emplace_back(std::move(text)); }
+
 private:
     static constexpr std::size_t BlockSize = 64 * 1024;
 
@@ -131,6 +136,7 @@ private:
     std::vector<std::unique_ptr<char[]>> _blocks;
     std::size_t _blockUsed = 0;
     std::size_t _blockCapacity = 0;
+    mutable std::deque<std::string> _derivedText;
 };
 
 #endif

@@ -29,6 +29,7 @@
 #include "Common.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
+#include "DatabaseLibrary.h"
 #include "DatabaseLoader.h"
 #include "GitRevision.h"
 #include "IoContext.h"
@@ -36,7 +37,6 @@
 #include "Metric.h"
 #include "ModuleMgr.h"
 #include "ModulesScriptLoader.h"
-#include "MySQLThreading.h"
 #include "OpenSSLCrypto.h"
 #include "OutdoorPvPMgr.h"
 #include "ProcessPriority.h"
@@ -434,7 +434,7 @@ int main(int argc, char** argv)
 /// Initialize connection to the databases
 bool StartDB()
 {
-    MySQL::Library_Init();
+    DatabaseLibrary::Init();
 
     // Load databases
     DatabaseLoader loader("server.worldserver", DatabaseLoader::DATABASE_MASK_ALL, AC_MODULES_LIST);
@@ -499,7 +499,7 @@ void StopDB()
 
     sScriptMgr->OnModuleDatabasesClosing();
 
-    MySQL::Library_End();
+    DatabaseLibrary::End();
 }
 
 /// Clear 'online' status for all accounts with characters in this realm

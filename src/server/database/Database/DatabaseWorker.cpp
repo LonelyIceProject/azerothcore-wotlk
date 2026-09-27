@@ -19,7 +19,7 @@
 #include "PCQueue.h"
 #include "SQLOperation.h"
 
-DatabaseWorker::DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, MySQLConnection* connection)
+DatabaseWorker::DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, DatabaseConnection* connection)
 {
     _connection = connection;
     _queue = newQueue;

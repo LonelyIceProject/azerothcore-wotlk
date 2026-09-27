@@ -40,6 +40,9 @@ namespace Acore::Types
 
 using Binary = std::vector<uint8>;
 
+struct FieldValue;
+class RowSet;
+
 enum class DatabaseFieldTypes : uint8
 {
     Null,
@@ -104,10 +107,7 @@ public:
     Field();
     ~Field() = default;
 
-    [[nodiscard]] inline bool IsNull() const
-    {
-        return data.value == nullptr;
-    }
+    [[nodiscard]] bool IsNull() const;
 
     template<typename T>
     inline std::enable_if_t<std::is_arithmetic_v<T>, T> Get() const
@@ -150,15 +150,7 @@ public:
     DatabaseFieldTypes GetType() { return meta->Type; }
 
 protected:
-    struct
-    {
-        char const* value;      // Actual data in memory
-        uint32 length;          // Length
-        bool raw;               // Raw bytes? (Prepared statement or ad hoc)
-    } data;
-
-    void SetByteValue(char const* newValue, uint32 length);
-    void SetStructuredValue(char const* newValue, uint32 length);
+    void SetValue(FieldValue const* value, RowSet const* rows);
     [[nodiscard]] bool IsType(DatabaseFieldTypes type) const;
     [[nodiscard]] bool IsNumeric() const;
 
@@ -170,6 +162,8 @@ private:
     std::string_view GetDataStringView() const;
     Binary GetDataBinary() const;
 
+    FieldValue const* _value;
+    RowSet const* _rows;
     QueryResultFieldMetadata const* meta;
     void LogWrongType(std::string_view getter, std::string_view typeName) const;
     void SetMetadata(QueryResultFieldMetadata const* fieldMeta);

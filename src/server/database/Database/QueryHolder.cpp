@@ -16,9 +16,9 @@
  */
 
 #include "QueryHolder.h"
+#include "DatabaseConnection.h"
 #include "Errors.h"
 #include "Log.h"
-#include "MySQLConnection.h"
 #include "PreparedStatement.h"
 #include "QueryResult.h"
 

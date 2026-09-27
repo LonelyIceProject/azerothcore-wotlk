@@ -25,18 +25,18 @@
 template <typename T>
 class ProducerConsumerQueue;
 
-class MySQLConnection;
+class DatabaseConnection;
 class SQLOperation;
 
 class AC_DATABASE_API DatabaseWorker
 {
 public:
-    DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, MySQLConnection* connection);
+    DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, DatabaseConnection* connection);
     ~DatabaseWorker();
 
 private:
     ProducerConsumerQueue<SQLOperation*>* _queue;
-    MySQLConnection* _connection;
+    DatabaseConnection* _connection;
 
     void WorkerThread();
     std::thread _workerThread;

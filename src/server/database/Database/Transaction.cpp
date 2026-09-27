@@ -16,12 +16,11 @@
  */
 
 #include "Transaction.h"
+#include "DatabaseConnection.h"
 #include "Errors.h"
 #include "Log.h"
-#include "MySQLConnection.h"
 #include "PreparedStatement.h"
 #include "Timer.h"
-#include <mysqld_error.h>
 #include <sstream>
 #include <thread>
 
@@ -95,12 +94,12 @@ void TransactionBase::Cleanup()
 
 bool TransactionTask::Execute()
 {
-    int errorCode = TryExecute();
+    DbErrorClass errorClass = TryExecute();
 
-    if (!errorCode)
+    if (errorClass == DbErrorClass::None)
         return true;
 
-    if (errorCode == ER_LOCK_DEADLOCK)
+    if (errorClass == DbErrorClass::Retryable)
     {
         std::ostringstream threadIdStream;
         threadIdStream << std::this_thread::get_id();
@@ -112,7 +111,7 @@ bool TransactionTask::Execute()
 
             for (Milliseconds loopDuration{}, startMSTime = GetTimeMS(); loopDuration <= DEADLOCK_MAX_RETRY_TIME_MS; loopDuration = GetMSTimeDiffToNow(startMSTime))
             {
-                if (!TryExecute())
+                if (TryExecute() == DbErrorClass::None)
                     return true;
 
                 LOG_WARN("sql.sql", "Deadlocked SQL Transaction, retrying. Loop timer: {} ms, Thread Id: {}", loopDuration.count(), threadId);
@@ -128,7 +127,7 @@ bool TransactionTask::Execute()
     return false;
 }
 
-int TransactionTask::TryExecute()
+DbErrorClass TransactionTask::TryExecute()
 {
     return m_conn->ExecuteTransaction(m_trans);
 }
@@ -140,14 +139,14 @@ void TransactionTask::CleanupOnFailure()
 
 bool TransactionWithResultTask::Execute()
 {
-    int errorCode = TryExecute();
-    if (!errorCode)
+    DbErrorClass errorClass = TryExecute();
+    if (errorClass == DbErrorClass::None)
     {
         m_result.set_value(true);
         return true;
     }
 
-    if (errorCode == ER_LOCK_DEADLOCK)
+    if (errorClass == DbErrorClass::Retryable)
     {
         std::ostringstream threadIdStream;
         threadIdStream << std::this_thread::get_id();
@@ -159,7 +158,7 @@ bool TransactionWithResultTask::Execute()
 
             for (Milliseconds loopDuration{}, startMSTime = GetTimeMS(); loopDuration <= DEADLOCK_MAX_RETRY_TIME_MS; loopDuration = GetMSTimeDiffToNow(startMSTime))
             {
-                if (!TryExecute())
+                if (TryExecute() == DbErrorClass::None)
                 {
                     m_result.set_value(true);
                     return true;

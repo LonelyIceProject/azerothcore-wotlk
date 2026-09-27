@@ -19,10 +19,10 @@
 #include "Config.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
+#include "DatabaseLibrary.h"
 #include "DatabaseLoader.h"
 #include "IoContext.h"
 #include "Log.h"
-#include "MySQLThreading.h"
 #include "OpenSSLCrypto.h"
 #include "Util.h"
 #include <boost/program_options.hpp>
@@ -108,7 +108,7 @@ int main(int argc, char** argv)
 /// Initialize connection to the database
 bool StartDB()
 {
-    MySQL::Library_Init();
+    DatabaseLibrary::Init();
 
     // Load modules conditionally based on what modules are allowed to auto-update or none
     std::string modules = sConfigMgr->GetOption<std::string>("Updates.AllowedModules", "all");
@@ -137,7 +137,7 @@ void StopDB()
     CharacterDatabase.Close();
     WorldDatabase.Close();
     LoginDatabase.Close();
-    MySQL::Library_End();
+    DatabaseLibrary::End();
 }
 
 variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile)
