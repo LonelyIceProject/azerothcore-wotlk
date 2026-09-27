@@ -218,7 +218,11 @@ DbError MySQLBackend::Open(bool /*create*/)
     if (!_mysql)
     {
         LOG_ERROR("sql.driver", "Could not connect to MySQL database at {}: {}", _info.host, mysql_error(mysqlInit));
-        DbError error = MakeMySQLError(mysql_errno(mysqlInit), mysql_error(mysqlInit));
+        uint32 const errNo = mysql_errno(mysqlInit);
+        DbError error = MakeMySQLError(errNo, mysql_error(mysqlInit));
+        if (!_connectedBefore && errNo != CR_CONNECTION_ERROR && error.cls == DbErrorClass::ConnectionLost)
+            error.cls = DbErrorClass::Other;
+
         mysql_close(mysqlInit);
         return error;
     }
