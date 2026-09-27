@@ -1,0 +1,267 @@
+# MySQL -> SQLite translation cases.
+#   @ <sql>   SQLite statement run on the scratch :memory: database
+#   > <sql>   MySQL input
+#   = <sql>   expected translation, must prepare on the scratch database ("=" alone: no-op)
+#   ~ <sql>   expected translation, text only
+#   -> <val>  first column of the first row of the translated input
+
+@ CREATE TABLE characters (guid INTEGER PRIMARY KEY, account INT, name TEXT, race INT, "order" INT, deleteInfos_Name TEXT, deleteDate INT, level INT)
+@ CREATE TABLE character_pet (id INT, owner INT, slot INT, entry INT, level INT, modelid INT)
+@ CREATE TABLE character_banned (guid INT, bandate INT, unbandate INT, bannedby TEXT, banreason TEXT, active INT, PRIMARY KEY (guid, bandate))
+@ CREATE TABLE character_queststatus_seasonal (guid INT, quest INT, event INT, PRIMARY KEY (guid, quest))
+@ CREATE TABLE guild_bank_right (guildid INT, TabId INT, rid INT, gbright INT, SlotPerDay INT, PRIMARY KEY (guildid, TabId, rid))
+@ CREATE TABLE guild_member_withdraw (guid INT PRIMARY KEY, tab0 INT, tab1 INT, tab2 INT, tab3 INT, tab4 INT, tab5 INT, money INT)
+@ CREATE TABLE gm_ticket (id INT PRIMARY KEY)
+@ CREATE TABLE character_spell (guid INT, spell INT, specMask INT, PRIMARY KEY (guid, spell))
+@ CREATE TABLE rbac_account_permissions (accountId INT, permissionId INT, granted INT, realmId INT, PRIMARY KEY (accountId, permissionId, realmId))
+@ CREATE TABLE playerbots_account_type (account_id INT PRIMARY KEY, account_type INT, assignment_date TEXT)
+@ CREATE TABLE playerbots_account_links (account_id INT, linked_account_id INT, PRIMARY KEY (account_id, linked_account_id))
+@ CREATE TABLE reserved_name (name TEXT PRIMARY KEY)
+@ CREATE TABLE item_soulbound_trade_data (itemGuid INT PRIMARY KEY, allowedPlayers TEXT)
+@ CREATE TABLE creature_template (entry INT PRIMARY KEY, name TEXT, subname TEXT)
+@ CREATE TABLE log_money (sender_acc INT, sender_guid INT, sender_name TEXT, topic TEXT, date TEXT)
+@ CREATE TABLE pvpstats_players (battleground_id INT, character_guid INT, winner INT)
+@ CREATE TABLE pvpstats_battlegrounds (id INT PRIMARY KEY, bracket_id INT, date TEXT)
+@ CREATE TABLE quest_tracker (id INT, character_guid INT, quest_accept_time TEXT, completed_by_gm INT, quest_complete_time TEXT)
+@ CREATE TABLE channels (channelId INT PRIMARY KEY, name TEXT)
+@ CREATE TABLE channels_bans (channelId INT, playerGUID INT, banTime INT)
+@ CREATE TABLE petition (ownerguid INT, petition_id INT, type INT)
+@ CREATE TABLE petition_sign (ownerguid INT, petition_id INT, playerguid INT)
+@ CREATE TABLE item_instance (guid INT PRIMARY KEY, itemEntry INT)
+@ CREATE TABLE character_inventory (guid INT, bag INT, slot INT, item INT PRIMARY KEY)
+@ CREATE TABLE t (a INT PRIMARY KEY, b INT, c TEXT, "key" TEXT, value TEXT)
+@ CREATE TABLE u (a INT PRIMARY KEY, b INT)
+@ INSERT INTO t (a, b, c) VALUES (1, 2, 'x'), (2, NULL, 'y')
+
+# identifiers
+> SELECT `key`,`value` FROM `t` WHERE `a` = ?
+= SELECT "key","value" FROM "t" WHERE "a" = ?
+> SELECT `we``ird`
+~ SELECT "we`ird"
+> SELECT t.key, t.value FROM t
+= SELECT t."key", t.value FROM t
+
+# CHAR_SEL_ENUM (reserved word after alias)
+> SELECT c.guid, c.name, cp.entry FROM characters AS c LEFT JOIN character_pet AS cp ON c.guid = cp.owner AND cp.slot = ? WHERE c.account = ? AND c.deleteInfos_Name IS NULL ORDER BY COALESCE(c.order, c.guid)
+= SELECT c.guid, c.name, cp.entry FROM characters AS c LEFT JOIN character_pet AS cp ON c.guid = cp.owner AND cp.slot = ? WHERE c.account = ? AND c.deleteInfos_Name IS NULL ORDER BY COALESCE(c."order", c.guid)
+
+# INSERT IGNORE
+> INSERT IGNORE INTO character_queststatus_seasonal (guid, quest, event) VALUES (?, ?, ?)
+= INSERT OR IGNORE INTO character_queststatus_seasonal (guid, quest, event) VALUES (?, ?, ?)
+> INSERT IGNORE INTO reserved_name (name) VALUES (?)
+= INSERT OR IGNORE INTO reserved_name (name) VALUES (?)
+> INSERT IGNORE INTO playerbots_account_links (account_id, linked_account_id) VALUES (?, ?)
+= INSERT OR IGNORE INTO playerbots_account_links (account_id, linked_account_id) VALUES (?, ?)
+> INSERT LOW_PRIORITY IGNORE INTO t (a) VALUES (1)
+= INSERT OR IGNORE INTO t (a) VALUES (1)
+> UPDATE IGNORE t SET b = 1
+= UPDATE OR IGNORE t SET b = 1
+> DELETE IGNORE FROM u WHERE a = 1
+= DELETE FROM u WHERE a = 1
+
+# ON DUPLICATE KEY UPDATE
+> INSERT INTO guild_bank_right (guildid, TabId, rid, gbright, SlotPerDay) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE gbright = VALUES(gbright), SlotPerDay = VALUES(SlotPerDay)
+= INSERT INTO guild_bank_right (guildid, TabId, rid, gbright, SlotPerDay) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET gbright = excluded.gbright, SlotPerDay = excluded.SlotPerDay
+> INSERT INTO guild_member_withdraw (guid, tab0, tab1, tab2, tab3, tab4, tab5, money) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE tab0 = VALUES (tab0), tab1 = VALUES (tab1), tab2 = VALUES (tab2), tab3 = VALUES (tab3), tab4 = VALUES (tab4), tab5 = VALUES (tab5)
+= INSERT INTO guild_member_withdraw (guid, tab0, tab1, tab2, tab3, tab4, tab5, money) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET tab0 = excluded.tab0, tab1 = excluded.tab1, tab2 = excluded.tab2, tab3 = excluded.tab3, tab4 = excluded.tab4, tab5 = excluded.tab5
+> INSERT INTO character_spell (guid, spell, specMask) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE specMask = VALUES(specMask)
+= INSERT INTO character_spell (guid, spell, specMask) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET specMask = excluded.specMask
+> INSERT INTO rbac_account_permissions (accountId, permissionId, granted, realmId) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE granted = VALUES(granted)
+= INSERT INTO rbac_account_permissions (accountId, permissionId, granted, realmId) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET granted = excluded.granted
+> INSERT INTO playerbots_account_type (account_id, account_type) VALUES (?, ?) ON DUPLICATE KEY UPDATE account_type = account_type
+= INSERT INTO playerbots_account_type (account_id, account_type) VALUES (?, ?) ON CONFLICT DO NOTHING
+> INSERT INTO `t` (`a`, `value`) VALUES (1, 'x') ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), b = IF(b > 1, b + 1, 0)
+= INSERT INTO "t" ("a", "value") VALUES (1, 'x') ON CONFLICT DO UPDATE SET "value" = excluded."value", b = IF(b > 1, b + 1, 0)
+> INSERT INTO u (a, b) SELECT a, b FROM t ON DUPLICATE KEY UPDATE b = VALUES(b)
+= INSERT INTO u (a, b) SELECT a, b FROM t WHERE true ON CONFLICT DO UPDATE SET b = excluded.b
+> INSERT INTO u (a, b) SELECT a, COUNT(*) FROM t GROUP BY a ON DUPLICATE KEY UPDATE b = VALUES(b)
+= INSERT INTO u (a, b) SELECT a, COUNT(*) FROM t WHERE true GROUP BY a ON CONFLICT DO UPDATE SET b = excluded.b
+> INSERT INTO u (a, b) SELECT a, b FROM t WHERE a > 0 ON DUPLICATE KEY UPDATE b = u.b + 1
+= INSERT INTO u (a, b) SELECT a, b FROM t WHERE a > 0 ON CONFLICT DO UPDATE SET b = u.b + 1
+
+# TRUNCATE
+> TRUNCATE guild_member_withdraw
+= DELETE FROM guild_member_withdraw
+> TRUNCATE TABLE `gm_ticket`
+= DELETE FROM "gm_ticket"
+
+# DESC / SHOW
+> DESC character_pet
+= SELECT name FROM pragma_table_info('character_pet') ORDER BY cid
+-> id
+> DESCRIBE `characters`
+= SELECT name FROM pragma_table_info('characters') ORDER BY cid
+-> guid
+> SHOW COLUMNS FROM t
+= SELECT name FROM pragma_table_info('t') ORDER BY cid
+> SHOW FULL FIELDS FROM t FROM main
+= SELECT name FROM pragma_table_info('t', 'main') ORDER BY cid
+> SHOW TABLES LIKE 'gm\_%'
+= SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite\_%' ESCAPE '\' AND name LIKE 'gm\_%' ESCAPE '\' ORDER BY name
+-> gm_ticket
+> SHOW TABLES
+= SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite\_%' ESCAPE '\' ORDER BY name
+-> channels
+
+# division, DIV, MOD
+> SELECT a / b FROM t
+= SELECT a * 1.0 / b FROM t
+> SELECT 7/2
+= SELECT 7 * 1.0 / 2
+-> 3.5
+> SELECT (a+1)/(b-1), SUM(b)/COUNT(*) FROM t
+= SELECT (a+1) * 1.0 / (b-1), SUM(b) * 1.0 / COUNT(*) FROM t
+> SELECT 7 DIV 2
+= SELECT 7 / 2
+-> 3
+> SELECT 7 MOD 3
+= SELECT 7 % 3
+-> 1
+
+# LIKE with backslash escapes
+> SELECT entry FROM creature_template WHERE name LIKE 'a\_b'
+= SELECT entry FROM creature_template WHERE name LIKE 'a\_b' ESCAPE '\'
+> SELECT 'axb' LIKE 'a\_b'
+-> 0
+> SELECT 'a_b' LIKE 'a\_b'
+-> 1
+> SELECT 'a%' NOT LIKE 'a\%'
+-> 0
+> SELECT 'a_b' LIKE 'a_b' ESCAPE '|'
+= SELECT 'a_b' LIKE 'a_b' ESCAPE '|'
+-> 1
+
+# strings
+> SELECT entry FROM creature_template WHERE name = 'Earthen\'s'
+= SELECT entry FROM creature_template WHERE name = 'Earthen''s'
+> SELECT "x"
+= SELECT 'x'
+-> x
+> SELECT "it's \"q\""
+= SELECT 'it''s "q"'
+-> it's "q"
+> SELECT 'C:\\path'
+= SELECT 'C:\path'
+-> C:\path
+> SELECT LENGTH('a\nb\tc\rd')
+-> 7
+> SELECT HEX('nul\0byte')
+= SELECT HEX(CAST(X'6E756C0062797465' AS TEXT))
+-> 6E756C0062797465
+> SELECT 'plain', 'dou''bled'
+= SELECT 'plain', 'dou''bled'
+> INSERT INTO log_money (sender_acc, sender_guid, sender_name, topic, date) VALUES (1, 2, "Name", "<GB DEPOSIT> 5", NOW())
+= INSERT INTO log_money (sender_acc, sender_guid, sender_name, topic, date) VALUES (1, 2, 'Name', '<GB DEPOSIT> 5', NOW())
+> SELECT _utf8mb4'abc', N'x'
+= SELECT 'abc', 'x'
+> SELECT _binary'ab'
+= SELECT CAST('ab' AS BLOB)
+
+# numbers
+> SELECT 0x80000000
+= SELECT 0x80000000
+-> 2147483648
+> SELECT b'101', 0b11
+= SELECT 5, 3
+-> 5
+> SELECT X'414243'
+= SELECT X'414243'
+> SELECT 1.5e3, .5
+= SELECT 1.5e3, .5
+
+# statements without effect
+> SET NAMES utf8mb4
+=
+> /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */
+=
+> SET FOREIGN_KEY_CHECKS = 0
+=
+> SET SESSION sql_mode = ''
+=
+> LOCK TABLES `t` WRITE
+=
+> UNLOCK TABLES
+=
+> FLUSH TABLES
+=
+> COMMIT
+=
+> START TRANSACTION
+=
+> SET @a := 1
+~ SET @a := 1
+
+# comments
+> SELECT 1 -- trailing
+= SELECT 1
+> SELECT /* c */ 1 # hash
+= SELECT 1
+> CREATE TABLE x (a INT) /*!40101 ENGINE=InnoDB */
+~ CREATE TABLE x (a INT)
+
+# operators
+> SELECT a FROM t WHERE b = 1 || c IS NULL && a <=> NULL
+= SELECT a FROM t WHERE b = 1 OR c IS NULL AND a IS NULL
+> SELECT !0
+= SELECT NOT 0
+-> 1
+> SELECT 5 & 3 | 8, ~0 & 255, 1 << 4
+= SELECT 5 & 3 | 8, ~0 & 255, 1 << 4
+-> 9
+
+# modifiers and hints
+> SELECT SQL_NO_CACHE a FROM t FORCE INDEX (PRIMARY) WHERE a = 1 FOR UPDATE
+= SELECT a FROM t WHERE a = 1
+> SELECT a FROM t USE INDEX FOR JOIN (x) LOCK IN SHARE MODE
+= SELECT a FROM t
+> SELECT STRAIGHT_JOIN t.a FROM t STRAIGHT_JOIN u ON t.a = u.a
+= SELECT t.a FROM t JOIN u ON t.a = u.a
+> SELECT 1 FROM DUAL
+= SELECT 1
+
+# functions and casts
+> SELECT CAST(b AS UNSIGNED), CAST(c AS SIGNED INTEGER), CAST(a AS CHAR(10)) FROM t
+= SELECT CAST(b AS INTEGER), CAST(c AS INTEGER), CAST(a AS TEXT) FROM t
+> SELECT CAST('12abc' AS UNSIGNED)
+= SELECT CAST('12abc' AS INTEGER)
+-> 12
+> SELECT GROUP_CONCAT(a SEPARATOR ';') FROM t
+= SELECT GROUP_CONCAT(a, ';') FROM t
+-> 1;2
+> SELECT GROUP_CONCAT(DISTINCT a SEPARATOR ',') FROM t
+= SELECT GROUP_CONCAT(DISTINCT a) FROM t
+-> 1,2
+> SELECT ISNULL(b) FROM t WHERE a = 2
+= SELECT ((b) IS NULL) FROM t WHERE a = 2
+-> 1
+> SELECT CURRENT_TIMESTAMP(), LOCALTIME
+= SELECT CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+> SELECT a FROM t WHERE c = 'X' COLLATE utf8mb4_general_ci
+= SELECT a FROM t WHERE c = 'X' COLLATE NOCASE
+-> 1
+> SELECT a FROM t WHERE c = BINARY 'x'
+= SELECT a FROM t WHERE c = 'x'
+> SELECT a AS transaction FROM t
+= SELECT a AS "transaction" FROM t
+
+# prepared statements that need no translation
+> INSERT INTO character_banned VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+?, ?, ?, 1)
+= INSERT INTO character_banned VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+?, ?, ?, 1)
+> DELETE FROM channels_bans WHERE banTime <= UNIX_TIMESTAMP() OR NOT EXISTS (SELECT 1 FROM channels cn WHERE cn.channelId = channels_bans.channelId)
+= DELETE FROM channels_bans WHERE banTime <= UNIX_TIMESTAMP() OR NOT EXISTS (SELECT 1 FROM channels cn WHERE cn.channelId = channels_bans.channelId)
+> DELETE FROM petition_sign WHERE playerguid = ? AND petition_id IN (SELECT petition_id FROM petition WHERE type = ?)
+= DELETE FROM petition_sign WHERE playerguid = ? AND petition_id IN (SELECT petition_id FROM petition WHERE type = ?)
+> UPDATE item_instance SET itemEntry = ? WHERE itemEntry = ? AND guid IN (SELECT item FROM character_inventory WHERE guid = ?)
+= UPDATE item_instance SET itemEntry = ? WHERE itemEntry = ? AND guid IN (SELECT item FROM character_inventory WHERE guid = ?)
+> REPLACE INTO character_inventory (guid, bag, slot, item) VALUES (?, ?, ?, ?)
+= REPLACE INTO character_inventory (guid, bag, slot, item) VALUES (?, ?, ?, ?)
+> SELECT character_guid, COUNT(character_guid) AS count, characters.name as character_name FROM pvpstats_players INNER JOIN pvpstats_battlegrounds ON pvpstats_players.battleground_id = pvpstats_battlegrounds.id AND bracket_id = ? AND MONTH(date) = MONTH(NOW()) AND YEAR(date) = YEAR(NOW()) INNER JOIN characters ON pvpstats_players.character_guid = characters.guid AND characters.deleteDate IS NULL WHERE pvpstats_players.winner = 1 GROUP BY character_guid, characters.name ORDER BY count(character_guid) DESC LIMIT 0, ?
+= SELECT character_guid, COUNT(character_guid) AS count, characters.name as character_name FROM pvpstats_players INNER JOIN pvpstats_battlegrounds ON pvpstats_players.battleground_id = pvpstats_battlegrounds.id AND bracket_id = ? AND MONTH(date) = MONTH(NOW()) AND YEAR(date) = YEAR(NOW()) INNER JOIN characters ON pvpstats_players.character_guid = characters.guid AND characters.deleteDate IS NULL WHERE pvpstats_players.winner = 1 GROUP BY character_guid, characters.name ORDER BY count(character_guid) DESC LIMIT 0, ?
+
+# left to SQLite statement overrides (Implementation/*SQLite.cpp)
+# CHAR_DEL_ITEM_BOP_TRADE
+> DELETE FROM item_soulbound_trade_data WHERE itemGuid = ? LIMIT 1
+~ DELETE FROM item_soulbound_trade_data WHERE itemGuid = ? LIMIT 1
+# CHAR_UPD_QUEST_TRACK_GM_COMPLETE, CHAR_UPD_QUEST_TRACK_COMPLETE_TIME, CHAR_UPD_QUEST_TRACK_ABANDON_TIME
+> UPDATE quest_tracker SET completed_by_gm = 1 WHERE id = ? AND character_guid = ? ORDER BY quest_accept_time DESC LIMIT 1
+~ UPDATE quest_tracker SET completed_by_gm = 1 WHERE id = ? AND character_guid = ? ORDER BY quest_accept_time DESC LIMIT 1

@@ -16,6 +16,7 @@
  */
 
 #include "SqlDialect.h"
+#include "StatementRewriter.h"
 
 namespace
 {
@@ -31,12 +32,20 @@ namespace
     private:
         DatabaseBackend _backend;
     };
+
+    class SqliteDialect final : public SqlDialect
+    {
+    public:
+        DatabaseBackend Backend() const override { return DatabaseBackend::SQLite; }
+        std::string Translate(std::string_view mysqlSql, ISchemaLookup const* /*schema*/) const override { return RewriteMySqlForSqlite(mysqlSql); }
+        bool NeedsTranslation(std::string_view mysqlSql) const override { return MySqlNeedsSqliteRewrite(mysqlSql); }
+    };
 }
 
 SqlDialect const& GetDialect(DatabaseBackend backend)
 {
     static IdentityDialect const mysql(DatabaseBackend::MySQL);
-    static IdentityDialect const sqlite(DatabaseBackend::SQLite);
+    static SqliteDialect const sqlite;
     static IdentityDialect const pgsql(DatabaseBackend::PostgreSQL);
 
     switch (backend)

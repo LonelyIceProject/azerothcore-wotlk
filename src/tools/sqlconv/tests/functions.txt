@@ -1,0 +1,86 @@
+# MySQL function shims (RegisterMySqlFunctions), UTC. Same format as translate.txt.
+
+> SELECT UNIX_TIMESTAMP('2024-01-01 00:00:00')
+-> 1704067200
+> SELECT UNIX_TIMESTAMP('2024-02-29')
+-> 1709164800
+> SELECT UNIX_TIMESTAMP('1969-12-31 23:59:59')
+-> 0
+> SELECT UNIX_TIMESTAMP(12345)
+-> 12345
+> SELECT UNIX_TIMESTAMP(NULL)
+-> NULL
+> SELECT UNIX_TIMESTAMP() > 1700000000
+-> 1
+> SELECT UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP() BETWEEN -1 AND 1
+-> 1
+> SELECT LENGTH(NOW())
+-> 19
+> SELECT LENGTH(CURDATE())
+-> 10
+> SELECT FROM_UNIXTIME(1704067200)
+-> 2024-01-01 00:00:00
+> SELECT FROM_UNIXTIME(1704067200 + 3723, '%Y/%m/%d %H:%i:%s %T %W %M %D %j %p')
+-> 2024/01/01 01:02:03 01:02:03 Monday January 1st 001 AM
+> SELECT DATE_FORMAT('2023-12-31 23:59:58', '%a %b %e %y %k %l %r %%')
+-> Sun Dec 31 23 23 11 11:59:58 PM %
+> SELECT DATE_FORMAT('2024-03-02', '%d.%m.%Y %c/%e %H:%i')
+-> 02.03.2024 3/2 00:00
+> SELECT DATE_FORMAT(NULL, '%Y')
+-> NULL
+> SELECT MONTH('2024-07-15 10:00:00')
+-> 7
+> SELECT YEAR('2024-07-15')
+-> 2024
+> SELECT DATEDIFF('2024-03-01', '2024-02-01 23:00:00')
+-> 29
+> SELECT IF(1 > 2, 'a', 'b')
+-> b
+> SELECT IF(NULL, 'a', 'b')
+-> b
+> SELECT RAND() >= 0 AND RAND() < 1
+-> 1
+> SELECT COUNT(*) FROM (SELECT 1 UNION SELECT 2) ORDER BY RAND()
+-> 2
+> SELECT FIND_IN_SET('b', 'a,b,c')
+-> 2
+> SELECT FIND_IN_SET('d', 'a,b,c')
+-> 0
+> SELECT FIND_IN_SET(NULL, 'a')
+-> NULL
+> SELECT LEFT('héllo', 2)
+-> hé
+> SELECT RIGHT('hello', 3)
+-> llo
+> SELECT CHAR_LENGTH('héllo')
+-> 5
+> SELECT GREATEST(1, 5, 3)
+-> 5
+> SELECT LEAST(2, 1.5, 3)
+-> 1.5
+> SELECT GREATEST(1, NULL)
+-> NULL
+> SELECT GREATEST('apple', 'banana')
+-> banana
+> SELECT CONCAT('a', 'b', 1)
+-> ab1
+> SELECT CONCAT('a', NULL)
+-> NULL
+> SELECT CONCAT_WS(',', 'a', NULL, 'b')
+-> a,b
+> SELECT SUBSTRING_INDEX('a.b.c', '.', 2)
+-> a.b
+> SELECT SUBSTRING_INDEX('a.b.c', '.', -2)
+-> b.c
+> SELECT SUBSTRING_INDEX('a.b.c', '.', 5)
+-> a.b.c
+> SELECT LOCATE('b', 'abcb', 3)
+-> 4
+> SELECT LOCATE('z', 'abc')
+-> 0
+> SELECT POW(2, 10)
+-> 1024.0
+> SELECT IFNULL(NULL, 3)
+-> 3
+> SELECT 5 / 2
+-> 2.5
