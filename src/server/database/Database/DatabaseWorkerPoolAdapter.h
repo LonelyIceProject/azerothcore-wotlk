@@ -37,9 +37,14 @@ public:
         return _pool.Query(query);
     }
 
-    MySQLConnectionInfo const* GetConnectionInfo() const override
+    DatabaseConnectionInfo const* GetConnectionInfo() const override
     {
         return _pool.GetConnectionInfo();
+    }
+
+    void RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn) override
+    {
+        _pool.RunOnSyncConnection(fn);
     }
 
 private:

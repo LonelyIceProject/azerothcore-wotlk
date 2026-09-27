@@ -19,8 +19,9 @@
 #define DATABASE_UPDATE_POOL_H
 
 #include "Define.h"
-#include "MySQLConnection.h"
+#include "DatabaseConnection.h"
 #include "QueryResult.h"
+#include <functional>
 #include <string_view>
 
 // Minimal pool interface the DB updater operates on. Core pools reach it through
@@ -31,7 +32,9 @@ struct AC_DATABASE_API DatabaseUpdatePool
 
     virtual void DirectExecute(std::string_view query) = 0;
     virtual QueryResult Query(std::string_view query) = 0;
-    virtual MySQLConnectionInfo const* GetConnectionInfo() const = 0;
+    virtual DatabaseConnectionInfo const* GetConnectionInfo() const = 0;
+    //! Runs fn on a free synchronous connection, which stays locked for the duration of the call.
+    virtual void RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn) = 0;
 };
 
 #endif

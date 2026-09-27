@@ -66,7 +66,7 @@ public:
     [[nodiscard]] DatabaseBackend GetBackend() const { return _connectionInfo.backend; }
 
     //! Runs fn on a free connection, which stays locked for the duration of the call.
-    void RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn);
+    void RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn) override;
 
     //! Format variants, mirroring DatabaseWorkerPool.
     template<typename... Args>

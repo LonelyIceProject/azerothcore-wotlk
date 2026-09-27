@@ -21,7 +21,10 @@
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
 #include "DatabaseWorkerPoolAdapter.h"
+#include "IDbConnectionBackend.h"
 #include "Log.h"
+#include "ScriptRunner.h"
+#include "SqlDialect.h"
 #include "StartProcess.h"
 #include "UpdateFetcher.h"
 #include "QueryResult.h"
@@ -36,6 +39,12 @@ std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
         return corrected_path();
     else
         return BuiltInConfig::GetMySQLExecutable();
+}
+
+bool DBUpdaterUtil::CheckPrerequisites(DatabaseBackend backend)
+{
+    // Only MySQL applies sql files through an external client
+    return backend != DatabaseBackend::MySQL || CheckExecutable();
 }
 
 bool DBUpdaterUtil::CheckExecutable()
@@ -212,10 +221,268 @@ using Path = std::filesystem::path;
 
 QueryResult Retrieve(DatabaseUpdatePool& pool, std::string const& query);
 void Apply(DatabaseUpdatePool& pool, std::string const& query);
-void ApplyFile(DatabaseUpdatePool& pool, Path const& path);
+bool ApplyFile(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record = nullptr);
 void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string const& user,
                std::string const& password, std::string const& port_or_socket, std::string const& database,
                std::string const& ssl, Path const& path);
+
+DatabaseBackend GetBackend(DatabaseUpdatePool& pool)
+{
+    return pool.GetConnectionInfo()->backend;
+}
+
+void FailUpdate()
+{
+    // Recorded in both modes. A dry run does not throw below, so it keeps attempting the
+    // remaining files and this count is the only thing left to fail the run on.
+    DBUpdaterUtil::MarkUpdateFailed();
+
+    if (!sConfigMgr->isDryRun())
+    {
+        if (uint32 delay = sConfigMgr->GetOption<uint32>("Updates.ExceptionShutdownDelay", 10000))
+            std::this_thread::sleep_for(Milliseconds(delay));
+
+        throw UpdateException("update failed");
+    }
+}
+
+bool HasAnyTable(DatabaseUpdatePool& pool)
+{
+    bool result = false;
+    pool.RunOnSyncConnection([&](DatabaseConnection& conn)
+    {
+        if (IDbConnectionBackend* backend = conn.GetBackendConnection())
+            result = backend->HasAnyTable();
+    });
+    return result;
+}
+
+bool TableExists(DatabaseUpdatePool& pool, std::string const& table)
+{
+    bool result = false;
+    pool.RunOnSyncConnection([&](DatabaseConnection& conn)
+    {
+        if (IDbConnectionBackend* backend = conn.GetBackendConnection())
+            result = backend->TableExists(table);
+    });
+    return result;
+}
+
+// Runs fn with a script target over a synchronous connection of the pool.
+bool RunOnScriptTarget(DatabaseUpdatePool& pool, std::function<bool(IScriptTarget&, std::string&)> const& fn, std::string& error)
+{
+    bool ok = false;
+    error = Acore::StringFormat("the {} backend cannot apply sql files", DatabaseBackendName(GetBackend(pool)));
+    pool.RunOnSyncConnection([&](DatabaseConnection& conn)
+    {
+        IDbConnectionBackend* backend = conn.GetBackendConnection();
+        std::unique_ptr<IScriptTarget> target = backend ? backend->CreateScriptTarget() : nullptr;
+        if (target)
+        {
+            error.clear();
+            ok = fn(*target, error);
+        }
+    });
+    return ok;
+}
+
+// <source>/data/sql/overrides/<backend>/<file>, then the same below the module the file belongs to.
+Path FindOverride(DatabaseBackend backend, DBUpdaterInfo const& info, Path const& path)
+{
+    Path const relative = Path("data") / "sql" / "overrides" / DatabaseBackendName(backend) / path.filename();
+    Path const source = Path(info.sourceDirectory).lexically_normal();
+    Path const modules = source / "modules";
+
+    std::vector<Path> candidates = { source / relative };
+    Path const inModules = path.lexically_normal().lexically_relative(modules);
+    if (!inModules.empty() && *inModules.begin() != "..")
+        candidates.push_back(modules / *inModules.begin() / relative);
+
+    for (Path const& candidate : candidates)
+    {
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(candidate, ec))
+            return candidate;
+    }
+
+    return {};
+}
+
+Path ResolveFile(DatabaseBackend backend, DBUpdaterInfo const& info, Path const& path)
+{
+    Path const override = FindOverride(backend, info, path);
+    if (override.empty())
+        return path;
+
+    LOG_INFO("sql.updates", ">> Using override \'{}\' for \'{}\'.", override.generic_string(), path.filename().generic_string());
+    return override;
+}
+
+bool RunScriptFile(IScriptTarget& target, Path const& file, std::string& error)
+{
+    ScriptRunnerOptions options;
+    options.transaction = false;
+
+    ScriptRunner runner(target, options);
+    if (runner.RunFile(file))
+        return true;
+
+    error = runner.GetError().ToString();
+    return false;
+}
+
+// Applies one file in its own transaction, with foreign keys checked at commit instead of per statement
+// (table rebuilds drop parents). The updates row, when given, is written in the same transaction.
+bool ApplyScript(IScriptTarget& target, Path const& file, UpdateFileRecord const* record, bool& recorded, std::string& error)
+{
+    DbError err;
+    if (!target.SetForeignKeys(false, err))
+    {
+        error = err.message;
+        return false;
+    }
+
+    SqlDialect const& dialect = GetDialect(target.Backend());
+
+    auto apply = [&]() -> bool
+    {
+        if (!target.Begin(err))
+            return false;
+
+        if (record)
+        {
+            // Another process sharing the database may have applied it while we waited for the lock
+            ScriptValue applied;
+            std::string const query = "SELECT `hash` FROM `updates` WHERE `name` = '" + MySqlEscape(record->name) + "'";
+            if (!target.Scalar(dialect.Translate(query, target.Schema()), applied, err))
+                return false;
+
+            if (std::string const* hash = std::get_if<std::string>(&applied); hash && *hash == record->hash)
+            {
+                target.Rollback();
+                recorded = true;
+                return true;
+            }
+        }
+
+        if (!RunScriptFile(target, file, error))
+            return false;
+
+        if (!target.CheckForeignKeys(err))
+            return false;
+
+        if (record)
+        {
+            if (!target.Exec(dialect.Translate(record->query(), target.Schema()), err))
+                return false;
+
+            recorded = true;
+        }
+
+        return target.Commit(err);
+    };
+
+    bool const ok = apply();
+    if (!ok)
+    {
+        target.Rollback();
+        recorded = false;
+        if (error.empty())
+            error = err.message;
+    }
+
+    DbError restore;
+    if (!target.SetForeignKeys(true, restore) && ok)
+    {
+        error = restore.message;
+        return false;
+    }
+
+    return ok;
+}
+
+bool ApplyFileThroughConnection(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record)
+{
+    Path const file = ResolveFile(GetBackend(pool), info, path);
+
+    bool recorded = false;
+    std::string error;
+    bool const ok = RunOnScriptTarget(pool, [&](IScriptTarget& target, std::string& err)
+    {
+        return ApplyScript(target, file, record, recorded, err);
+    }, error);
+
+    if (!ok)
+    {
+        LOG_FATAL("sql.updates", "Applying of file \'{}\' to database \'{}\' failed! {}", file.generic_string(), pool.GetConnectionInfo()->database, error);
+        FailUpdate();
+    }
+
+    return recorded;
+}
+
+// Base files are dumps in name order, so foreign keys stay off until all of them are in.
+void PopulateThroughConnection(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::vector<Path> const& files)
+{
+    DatabaseBackend const backend = GetBackend(pool);
+    std::vector<std::pair<Path, std::string>> failures;
+
+    std::string error;
+    bool const ok = RunOnScriptTarget(pool, [&](IScriptTarget& target, std::string& err)
+    {
+        DbError dbErr;
+        if (!target.SetForeignKeys(false, dbErr))
+        {
+            err = dbErr.message;
+            return false;
+        }
+
+        for (Path const& path : files)
+        {
+            LOG_INFO("sql.updates", ">> Applying \'{}\'...", path.filename().generic_string());
+
+            Path const file = ResolveFile(backend, info, path);
+            std::string fileError;
+            bool applied = target.Begin(dbErr);
+            if (applied)
+                applied = RunScriptFile(target, file, fileError) && target.Commit(dbErr);
+            else
+                fileError = dbErr.message;
+
+            if (!applied)
+            {
+                target.Rollback();
+                failures.emplace_back(file, fileError.empty() ? dbErr.message : fileError);
+                if (!sConfigMgr->isDryRun())
+                    break;
+            }
+        }
+
+        bool checked = failures.empty() ? target.CheckForeignKeys(dbErr) : true;
+        if (!checked)
+            err = dbErr.message;
+
+        DbError restore;
+        target.SetForeignKeys(true, restore);
+
+        if (checked && failures.empty() && !target.Exec("ANALYZE", dbErr))
+            LOG_WARN("sql.updates", ">> Could not analyze database \"{}\": {}", pool.GetConnectionInfo()->database, dbErr.message);
+
+        return checked;
+    }, error);
+
+    for (auto const& [file, fileError] : failures)
+    {
+        LOG_FATAL("sql.updates", "Applying of file \'{}\' to database \'{}\' failed! {}", file.generic_string(), pool.GetConnectionInfo()->database, fileError);
+        FailUpdate();
+    }
+
+    if (!ok)
+    {
+        LOG_FATAL("sql.updates", "Populating database \'{}\' failed! {}", pool.GetConnectionInfo()->database, error);
+        FailUpdate();
+    }
+}
 
 bool CreateDatabase(DatabaseUpdatePool& pool)
 {
@@ -233,6 +500,22 @@ bool CreateDatabase(DatabaseUpdatePool& pool)
     }
 
     LOG_INFO("sql.updates", "Creating database \"{}\"...", pool.GetConnectionInfo()->database);
+
+    if (GetBackend(pool) != DatabaseBackend::MySQL)
+    {
+        std::unique_ptr<IDbConnectionBackend> backend = CreateBackend(*pool.GetConnectionInfo());
+        DbError const error = backend ? backend->Open(true) : DbError{ DbErrorClass::Other, 0, "backend is not available" };
+        if (error.IsError())
+        {
+            LOG_FATAL("sql.updates", "Failed to create database {}! {}", pool.GetConnectionInfo()->database, error.message);
+            return false;
+        }
+
+        backend->Close();
+        LOG_INFO("sql.updates", "Done.");
+        LOG_INFO("sql.updates", " ");
+        return true;
+    }
 
     // Path of temp file
     static Path const temp("create_table.sql");
@@ -269,7 +552,7 @@ bool CreateDatabase(DatabaseUpdatePool& pool)
 
 bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::string_view modulesList)
 {
-    if (!DBUpdaterUtil::CheckExecutable())
+    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
         return false;
 
     LOG_INFO("sql.updates", "Updating {} database...", info.displayName);
@@ -285,8 +568,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
 
     auto CheckUpdateTable = [&](std::string const& tableName)
     {
-        auto checkTable = Retrieve(pool, Acore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
-        if (!checkTable)
+        if (!TableExists(pool, tableName))
         {
             LOG_WARN("sql.updates", "> Table '{}' not exist! Try add based table", tableName);
 
@@ -294,7 +576,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
 
             try
             {
-                ApplyFile(pool, temp);
+                ApplyFile(pool, info, temp);
             }
             catch (UpdateException&)
             {
@@ -312,7 +594,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
         return false;
 
     UpdateFetcher updateFetcher(sourceDirectory, [&](std::string const & query) { Apply(pool, query); },
-    [&](Path const & file) { ApplyFile(pool, file); },
+    [&](Path const & file, UpdateFileRecord const& record) { return ApplyFile(pool, info, file, &record); },
     [&](std::string const & query) -> QueryResult { return Retrieve(pool, query); }, info.dbModuleName, modulesList);
 
     UpdateResult result;
@@ -344,7 +626,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
 bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info,
                     std::vector<std::string> const* setDirectories)
 {
-    if (!DBUpdaterUtil::CheckExecutable())
+    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
     {
         return false;
     }
@@ -357,13 +639,12 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info,
 
     auto CheckUpdateTable = [&](std::string const& tableName)
     {
-        auto checkTable = Retrieve(pool, Acore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
-        if (!checkTable)
+        if (!TableExists(pool, tableName))
         {
             Path const temp = Path(info.baseFilesDirectory) / (tableName + ".sql");
             try
             {
-                ApplyFile(pool, temp);
+                ApplyFile(pool, info, temp);
             }
             catch (UpdateException&)
             {
@@ -382,7 +663,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info,
     }
 
     UpdateFetcher updateFetcher(sourceDirectory, [&](std::string const & query) { Apply(pool, query); },
-    [&](Path const & file) { ApplyFile(pool, file); },
+    [&](Path const & file, UpdateFileRecord const& record) { return ApplyFile(pool, info, file, &record); },
     [&](std::string const & query) -> QueryResult { return Retrieve(pool, query); }, info.dbModuleName, setDirectories);
 
     UpdateResult result;
@@ -404,13 +685,10 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info,
 
 bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
 {
-    {
-        QueryResult const result = Retrieve(pool, "SHOW TABLES");
-        if (result && (result->GetRowCount() > 0))
-            return true;
-    }
+    if (HasAnyTable(pool))
+        return true;
 
-    if (!DBUpdaterUtil::CheckExecutable())
+    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
         return false;
 
     LOG_INFO("sql.updates", "Database {} is empty, auto populating it...", info.displayName);
@@ -455,17 +733,31 @@ bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
 
     std::sort(sqlFiles.begin(), sqlFiles.end());
 
-    for (auto const& file : sqlFiles)
+    if (GetBackend(pool) != DatabaseBackend::MySQL)
     {
-        LOG_INFO("sql.updates", ">> Applying \'{}\'...", file.filename().generic_string());
-
         try
         {
-            ApplyFile(pool, file);
+            PopulateThroughConnection(pool, info, sqlFiles);
         }
         catch (UpdateException&)
         {
             return false;
+        }
+    }
+    else
+    {
+        for (auto const& file : sqlFiles)
+        {
+            LOG_INFO("sql.updates", ">> Applying \'{}\'...", file.filename().generic_string());
+
+            try
+            {
+                ApplyFile(pool, info, file);
+            }
+            catch (UpdateException&)
+            {
+                return false;
+            }
         }
     }
 
@@ -474,21 +766,49 @@ bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
     return true;
 }
 
+// Unlike the pool's Query, a failed query throws instead of reading as an empty result.
 QueryResult Retrieve(DatabaseUpdatePool& pool, std::string const& query)
 {
-    return pool.Query(query);
+    ResultSet* result = nullptr;
+    pool.RunOnSyncConnection([&](DatabaseConnection& conn) { result = conn.Query(query); });
+
+    if (!result)
+    {
+        LOG_FATAL("sql.updates", "Query \"{}\" failed on database \'{}\'.", query, pool.GetConnectionInfo()->database);
+        throw UpdateException("update query failed");
+    }
+
+    if (!result->GetRowCount() || !result->NextRow())
+    {
+        delete result;
+        return QueryResult(nullptr);
+    }
+
+    return QueryResult(result);
 }
 
 void Apply(DatabaseUpdatePool& pool, std::string const& query)
 {
-    pool.DirectExecute(query);
+    bool ok = false;
+    pool.RunOnSyncConnection([&](DatabaseConnection& conn) { ok = conn.Execute(query); });
+
+    if (!ok)
+    {
+        LOG_FATAL("sql.updates", "Query \"{}\" failed on database \'{}\'.", query, pool.GetConnectionInfo()->database);
+        throw UpdateException("update query failed");
+    }
 }
 
-void ApplyFile(DatabaseUpdatePool& pool, Path const& path)
+// Returns true when the updates row of record was written together with the file.
+bool ApplyFile(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record)
 {
+    if (GetBackend(pool) != DatabaseBackend::MySQL)
+        return ApplyFileThroughConnection(pool, info, path, record);
+
     ApplyFile(pool, pool.GetConnectionInfo()->host, pool.GetConnectionInfo()->user,
               pool.GetConnectionInfo()->password, pool.GetConnectionInfo()->port_or_socket,
               pool.GetConnectionInfo()->database, pool.GetConnectionInfo()->ssl, path);
+    return false;
 }
 
 void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string const& user,
@@ -567,17 +887,7 @@ void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string co
             "If you are a developer, please fix your sql query.",
             path.generic_string(), pool.GetConnectionInfo()->database);
 
-        // Recorded in both modes. A dry run does not throw below, so it keeps attempting the
-        // remaining files and this count is the only thing left to fail the run on.
-        DBUpdaterUtil::MarkUpdateFailed();
-
-        if (!sConfigMgr->isDryRun())
-        {
-            if (uint32 delay = sConfigMgr->GetOption<uint32>("Updates.ExceptionShutdownDelay", 10000))
-                std::this_thread::sleep_for(Milliseconds(delay));
-
-            throw UpdateException("update failed");
-        }
+        FailUpdate();
     }
 }
 

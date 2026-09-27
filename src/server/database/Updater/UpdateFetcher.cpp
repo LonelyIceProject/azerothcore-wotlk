@@ -39,7 +39,7 @@ struct UpdateFetcher::DirectoryEntry
 
 UpdateFetcher::UpdateFetcher(Path const& sourceDirectory,
                              std::function<void(std::string const&)> const& apply,
-                             std::function<void(Path const& path)> const& applyFile,
+                             ApplyFileFn const& applyFile,
                              std::function<QueryResult(std::string const&)> const& retrieve, std::string const& dbModuleName, std::vector<std::string> const* setDirectories /*= nullptr*/) :
     _sourceDirectory(std::make_unique<Path>(sourceDirectory)), _apply(apply), _applyFile(applyFile),
     _retrieve(retrieve), _dbModuleName(dbModuleName), _setDirectories(setDirectories)
@@ -48,7 +48,7 @@ UpdateFetcher::UpdateFetcher(Path const& sourceDirectory,
 
 UpdateFetcher::UpdateFetcher(Path const& sourceDirectory,
     std::function<void(std::string const&)> const& apply,
-    std::function<void(Path const& path)> const& applyFile,
+    ApplyFileFn const& applyFile,
     std::function<QueryResult(std::string const&)> const& retrieve,
     std::string const& dbModuleName,
     std::string_view modulesList /*= {}*/) :
@@ -371,16 +371,15 @@ UpdateResult UpdateFetcher::Update(bool const redundancyChecks,
             }
         }
 
-        uint32 speed = 0;
         AppliedFileEntry const file = { filePath.filename().string(), hash, fileState, 0 };
 
         switch (mode)
         {
             case MODE_APPLY:
-                speed = Apply(filePath);
-                [[fallthrough]];
+                Apply(filePath, file);
+                break;
             case MODE_REHASH:
-                UpdateEntry(file, speed);
+                UpdateEntry(file);
                 break;
         }
 
@@ -445,34 +444,38 @@ UpdateResult UpdateFetcher::Update(bool const redundancyChecks,
     return UpdateResult(importedUpdates, countRecentUpdates, countArchivedUpdates);
 }
 
-uint32 UpdateFetcher::Apply(Path const& path) const
+void UpdateFetcher::Apply(Path const& path, AppliedFileEntry const& entry) const
 {
     using Time = std::chrono::high_resolution_clock;
 
     // Benchmark query speed
     auto const begin = Time::now();
+    auto elapsed = [&begin]() { return uint32(std::chrono::duration_cast<std::chrono::milliseconds>(Time::now() - begin).count()); };
+
+    UpdateFileRecord const record = { entry.name, entry.hash, [&]() { return GetUpdateEntryQuery(entry, elapsed()); } };
 
     // Update database
-    _applyFile(path);
+    if (!_applyFile(path, record))
+        UpdateEntry(entry, elapsed());
+}
 
-    // Return the time it took the query to apply
-    return uint32(std::chrono::duration_cast<std::chrono::milliseconds>(Time::now() - begin).count());
+std::string UpdateFetcher::GetUpdateEntryQuery(AppliedFileEntry const& entry, uint32 const speed)
+{
+    return "REPLACE INTO `updates` (`name`, `hash`, `state`, `speed`) VALUES (\'" +
+           entry.name + "\', \'" + entry.hash + "\', \'" + entry.GetStateAsString() + "\', " + std::to_string(speed) + ")";
 }
 
 void UpdateFetcher::UpdateEntry(AppliedFileEntry const& entry, uint32 const speed) const
 {
-    std::string const update = "REPLACE INTO `updates` (`name`, `hash`, `state`, `speed`) VALUES (\"" +
-                               entry.name + "\", \"" + entry.hash + "\", \'" + entry.GetStateAsString() + "\', " + std::to_string(speed) + ")";
-
     // Update database
-    _apply(update);
+    _apply(GetUpdateEntryQuery(entry, speed));
 }
 
 void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) const
 {
     // Delete the target if it exists
     {
-        std::string const update = "DELETE FROM `updates` WHERE `name`=\"" + to + "\"";
+        std::string const update = "DELETE FROM `updates` WHERE `name`=\'" + to + "\'";
 
         // Update database
         _apply(update);
@@ -480,7 +483,7 @@ void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) 
 
     // Rename
     {
-        std::string const update = "UPDATE `updates` SET `name`=\"" + to + "\" WHERE `name`=\"" + from + "\"";
+        std::string const update = "UPDATE `updates` SET `name`=\'" + to + "\' WHERE `name`=\'" + from + "\'";
 
         // Update database
         _apply(update);
@@ -499,7 +502,7 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
 
     for (auto const& entry : storage)
     {
-        update << "\"" << entry.first << "\"";
+        update << "\'" << entry.first << "\'";
         if ((--remaining) > 0)
             update << ", ";
     }
@@ -512,7 +515,7 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
 
 void UpdateFetcher::UpdateState(std::string const& name, State const state) const
 {
-    std::string const update = "UPDATE `updates` SET `state`=\'" + AppliedFileEntry::StateConvert(state) + "\' WHERE `name`=\"" + name + "\"";
+    std::string const update = "UPDATE `updates` SET `state`=\'" + AppliedFileEntry::StateConvert(state) + "\' WHERE `name`=\'" + name + "\'";
 
     // Update database
     _apply(update);

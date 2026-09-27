@@ -104,6 +104,7 @@ protected:
 private:
     std::string_view Translate(std::string_view sql, std::string& buffer) const;
     std::string GetQueryString(uint32 index, PreparedStatementBase const* stmt) const;
+    void LogQueryError(std::string_view sql, std::string_view text, DbError const& error) const;
     void SetError(DbError const& error);
 
     std::unique_ptr<IDbConnectionBackend> m_backend;    //! Physical connection

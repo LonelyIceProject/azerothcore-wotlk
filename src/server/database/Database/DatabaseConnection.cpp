@@ -122,6 +122,14 @@ std::string_view DatabaseConnection::Translate(std::string_view sql, std::string
     return buffer;
 }
 
+void DatabaseConnection::LogQueryError(std::string_view sql, std::string_view text, DbError const& error) const
+{
+    if (text.data() != sql.data())
+        LOG_ERROR("sql.sql", "SQL: {}\n SQL ({}): {}\n [ERROR]: [{}] {}", sql, DatabaseBackendName(GetBackend()), text, error.native, error.message);
+    else
+        LOG_ERROR("sql.sql", "SQL: {}\n [ERROR]: [{}] {}", sql, error.native, error.message);
+}
+
 void DatabaseConnection::SetError(DbError const& error)
 {
     m_lastError = error;
@@ -146,11 +154,7 @@ bool DatabaseConnection::Execute(std::string_view sql)
     if (!m_backend->Execute(text, error))
     {
         SetError(error);
-
-        LOG_INFO("sql.sql", "SQL: {}", sql);
-        if (text.data() != sql.data())
-            LOG_INFO("sql.sql", "SQL ({}): {}", DatabaseBackendName(GetBackend()), text);
-        LOG_ERROR("sql.sql", "[{}] {}", error.native, error.message);
+        LogQueryError(sql, text, error);
 
         if (HandleError(error))  // If it returns true, an error was handled successfully (i.e. reconnection)
             return Execute(sql);       // Try again
@@ -214,11 +218,7 @@ ResultSet* DatabaseConnection::Query(std::string_view sql)
     if (!rows)
     {
         SetError(error);
-
-        LOG_INFO("sql.sql", "SQL: {}", sql);
-        if (text.data() != sql.data())
-            LOG_INFO("sql.sql", "SQL ({}): {}", DatabaseBackendName(GetBackend()), text);
-        LOG_ERROR("sql.sql", "[{}] {}", error.native, error.message);
+        LogQueryError(sql, text, error);
 
         if (HandleError(error)) // If it returns true, an error was handled successfully (i.e. reconnection)
             return Query(sql);    // We try again
@@ -552,18 +552,9 @@ bool DatabaseConnection::HandleError(DbError const& error, uint8 attempts /*= 5*
         case DbErrorClass::Constraint:
             return false;
 
-        // Outdated table or database structure - terminate core
+        // Fail only this query; statements that fail to prepare still stop the server (m_prepareError)
         case DbErrorClass::SchemaMismatch:
-            str = "Your database structure is not up to date. Please make sure you've executed all queries in the sql/updates folders.";
-            LOG_FATAL("sql.sql", "{}", str);
-            std::this_thread::sleep_for(10s);
-            ABORT("{}\n\n[{}] {}", str, error.native, error.message);
-            return false;
         case DbErrorClass::Syntax:
-            str = "Error while parsing SQL. Core fix required.";
-            LOG_FATAL("sql.sql", "{}", str);
-            std::this_thread::sleep_for(10s);
-            ABORT("{}\n\n[{}] {}", str, error.native, error.message);
             return false;
         default:
             LOG_ERROR("sql.sql", "Unhandled {} error {}. Unexpected behaviour possible.", DatabaseBackendName(GetBackend()), error.native);

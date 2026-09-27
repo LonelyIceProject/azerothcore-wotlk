@@ -21,6 +21,7 @@
 #include "DatabaseEnv.h"
 #include "Define.h"
 #include <filesystem>
+#include <functional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -39,19 +40,31 @@ struct AC_DATABASE_API UpdateResult
     std::size_t archived;
 };
 
+// The `updates` row of an update file being applied.
+struct UpdateFileRecord
+{
+    std::string name;
+    std::string hash;
+    std::function<std::string()> query; // MySQL-dialect REPLACE INTO `updates`, speed measured at the time of the call
+};
+
 class AC_DATABASE_API UpdateFetcher
 {
     typedef std::filesystem::path Path;
 
 public:
+    // applyFile returns true when it stored the record itself (in the same transaction as the file),
+    // otherwise the fetcher stores it through apply.
+    typedef std::function<bool(Path const& path, UpdateFileRecord const& record)> ApplyFileFn;
+
     UpdateFetcher(Path const& updateDirectory,
                   std::function<void(std::string const&)> const& apply,
-                  std::function<void(Path const& path)> const& applyFile,
+                  ApplyFileFn const& applyFile,
                   std::function<QueryResult(std::string const&)> const& retrieve, std::string const& dbModuleName, std::vector<std::string> const* setDirectories = nullptr);
 
     UpdateFetcher(Path const& updateDirectory,
         std::function<void(std::string const&)> const& apply,
-        std::function<void(Path const& path)> const& applyFile,
+        ApplyFileFn const& applyFile,
         std::function<QueryResult(std::string const&)> const& retrieve,
         std::string const& dbModuleName,
         std::string_view modulesList = {});
@@ -149,8 +162,9 @@ private:
 
     std::string ReadSQLUpdate(Path const& file) const;
 
-    uint32 Apply(Path const& path) const;
+    void Apply(Path const& path, AppliedFileEntry const& entry) const;
 
+    static std::string GetUpdateEntryQuery(AppliedFileEntry const& entry, uint32 const speed);
     void UpdateEntry(AppliedFileEntry const& entry, uint32 const speed = 0) const;
     void RenameEntry(std::string const& from, std::string const& to) const;
     void CleanUp(AppliedFileStorage const& storage) const;
@@ -160,7 +174,7 @@ private:
     std::unique_ptr<Path> const _sourceDirectory;
 
     std::function<void(std::string const&)> const _apply;
-    std::function<void(Path const& path)> const _applyFile;
+    ApplyFileFn const _applyFile;
     std::function<QueryResult(std::string const&)> const _retrieve;
 
     // modules
