@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Commands.h"
 #include "MySqlLexer.h"
 #include "SqlDialect.h"
 #include <cstdio>
@@ -95,6 +96,11 @@ namespace
     {
         { "selftest",  SelfTestCommand },
         { "translate", TranslateCommand },
+        { "selftest-schema", SchemaSelfTestCommand },
+        { "lint", LintCommand },
+        { "load", LoadCommand },
+        { "schema-diff", SchemaDiffCommand },
+        { "verify", VerifyCommand },
     };
 }
 
