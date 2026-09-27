@@ -131,6 +131,42 @@
 = SELECT 'a_b' LIKE 'a_b' ESCAPE '|'
 -> 1
 
+# case-sensitive LIKE (*_bin collation, BINARY) becomes GLOB
+> SELECT entry FROM creature_template WHERE name COLLATE utf8mb4_bin LIKE '%OLD%'
+= SELECT entry FROM creature_template WHERE name COLLATE BINARY GLOB '*OLD*'
+> SELECT 'Golden' COLLATE utf8mb4_bin LIKE '%OLD%'
+= SELECT 'Golden' COLLATE BINARY GLOB '*OLD*'
+-> 0
+> SELECT 'OLD Sword' COLLATE utf8mb4_bin LIKE '%OLD%'
+-> 1
+> SELECT 'Golden' COLLATE utf8mb4_general_ci LIKE '%OLD%'
+= SELECT 'Golden' COLLATE NOCASE LIKE '%OLD%'
+-> 1
+> SELECT 'abc' LIKE BINARY 'A%'
+= SELECT 'abc' GLOB 'A*'
+-> 0
+> SELECT 'abc' NOT LIKE 'A%' COLLATE utf8mb4_bin
+= SELECT 'abc' NOT GLOB 'A*' COLLATE BINARY
+-> 1
+> SELECT c.guid FROM characters AS c WHERE BINARY c.name LIKE 'a_*[%'
+= SELECT c.guid FROM characters AS c WHERE c.name GLOB 'a?[*][[]*'
+> SELECT 'a_*b' LIKE BINARY 'a\_*%'
+= SELECT 'a_*b' GLOB 'a_[*]*'
+-> 1
+> SELECT 'ax*b' LIKE BINARY 'a\_*%'
+-> 0
+> SELECT 'A%b' LIKE BINARY 'A|%%' ESCAPE '|'
+= SELECT 'A%b' GLOB 'A%*'
+-> 1
+> SELECT guid FROM characters WHERE name COLLATE utf8mb4_bin LIKE CONCAT('%', ?, '%')
+= SELECT guid FROM characters WHERE name COLLATE BINARY GLOB replace(replace(replace(replace(replace(CONCAT('%', ?, '%'), '[', '[[]'), '*', '[*]'), char(63), '[' || char(63) || ']'), '%', '*'), '_', char(63))
+> SELECT 'Ab*c_d' COLLATE utf8mb4_bin LIKE CONCAT('%', 'b*c_', '%')
+-> 1
+> SELECT 'Abxc_d' COLLATE utf8mb4_bin LIKE CONCAT('%', 'b*c_', '%')
+-> 0
+> SELECT 'abc' COLLATE utf8mb4_bin LIKE CONCAT('%', 'B', '%')
+-> 0
+
 # strings
 > SELECT entry FROM creature_template WHERE name = 'Earthen\'s'
 = SELECT entry FROM creature_template WHERE name = 'Earthen''s'

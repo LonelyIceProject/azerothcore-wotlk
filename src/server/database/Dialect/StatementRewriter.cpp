@@ -597,11 +597,123 @@ namespace
             Set(i, std::move(type));
         }
 
+        bool IsCaseSensitiveCollation(std::size_t i) const
+        {
+            if (!IsName(i))
+                return false;
+            std::string collation = MySqlUnquoteIdentifier(Sig(i).src);
+            std::transform(collation.begin(), collation.end(), collation.begin(), ToLower);
+            return !collation.ends_with("_ci");
+        }
+
+        // Last token of a single operand starting at i: name, a.b, parameter, variable, literal or f(...).
+        std::size_t OperandEnd(std::size_t i) const
+        {
+            if (i >= Count())
+                return npos;
+            if (IsName(i) && IsPunct(i + 1, '('))
+                return MatchingParen(i + 1);
+            if (IsName(i) && IsPunct(i + 1, '.') && IsName(i + 2))
+                return i + 2;
+            if (IsName(i) || Sig(i).type == MySqlTokenType::Parameter || Sig(i).type == MySqlTokenType::Variable || Sig(i).type == MySqlTokenType::String)
+                return i;
+            return npos;
+        }
+
+        // LIKE on a *_bin/binary operand: [BINARY] x [COLLATE c] [NOT] LIKE [BINARY] p [COLLATE c].
+        std::size_t CaseSensitiveLikePattern(std::size_t like) const
+        {
+            std::size_t pattern = Is(like + 1, "BINARY") ? like + 2 : like + 1;
+            std::size_t const patternEnd = OperandEnd(pattern);
+            if (patternEnd == npos)
+                return npos;
+
+            if (pattern == like + 2 || (Is(patternEnd + 1, "COLLATE") && IsCaseSensitiveCollation(patternEnd + 2)))
+                return pattern;
+
+            std::size_t j = Is(like - 1, "NOT") ? like - 1 : like;
+            if (j >= 2 && Is(j - 2, "COLLATE"))
+                return IsCaseSensitiveCollation(j - 1) ? pattern : npos;
+
+            if (j >= 2 && IsName(j - 1) && Is(j - 2, "BINARY"))
+                return pattern;
+            if (j >= 4 && IsName(j - 1) && IsPunct(j - 2, '.') && IsName(j - 3) && Is(j - 4, "BINARY"))
+                return pattern;
+            return npos;
+        }
+
+        static std::string LikeToGlob(std::string_view pattern, std::optional<char> escape)
+        {
+            std::string result;
+            for (std::size_t i = 0; i < pattern.size(); ++i)
+            {
+                char c = pattern[i];
+                if (escape && c == *escape && i + 1 < pattern.size())
+                    c = pattern[++i];
+                else if (c == '%')
+                {
+                    result += '*';
+                    continue;
+                }
+                else if (c == '_')
+                {
+                    result += '?';
+                    continue;
+                }
+
+                if (c == '*' || c == '?' || c == '[')
+                {
+                    result += '[';
+                    result += c;
+                    result += ']';
+                }
+                else
+                    result += c;
+            }
+            return result;
+        }
+
+        bool RewriteCaseSensitiveLike(std::size_t like)
+        {
+            std::size_t const pattern = CaseSensitiveLikePattern(like);
+            if (pattern == npos)
+                return false;
+
+            std::size_t const patternEnd = OperandEnd(pattern);
+            if (pattern == patternEnd && Sig(pattern).type == MySqlTokenType::String)
+            {
+                std::optional<char> escape = '\\';
+                if (Is(pattern + 1, "ESCAPE") && pattern + 2 < Count() && Sig(pattern + 2).type == MySqlTokenType::String)
+                {
+                    std::string const escapeText = MySqlDecodeString(Sig(pattern + 2).src);
+                    escape = escapeText.empty() ? std::nullopt : std::optional<char>(escapeText.front());
+                    Erase(pattern + 1, pattern + 2);
+                }
+                Set(pattern, SqliteQuoteString(LikeToGlob(MySqlDecodeString(Sig(pattern).src), escape)));
+            }
+            else
+            {
+                if (Is(patternEnd + 1, "ESCAPE"))
+                    return false;
+                Set(pattern, "replace(replace(replace(replace(replace(" + std::string(Sig(pattern).Text()));
+                Set(patternEnd, std::string(Sig(patternEnd).Text()) + ", '[', '[[]'), '*', '[*]'), char(63), '[' || char(63) || ']'), '%', '*'), '_', char(63))");
+            }
+
+            Set(like, "GLOB");
+            return true;
+        }
+
         void RewriteLikeEscapes()
         {
             for (std::size_t i = 0; i + 1 < Count(); ++i)
             {
-                if (!Is(i, "LIKE") || Sig(i + 1).type != MySqlTokenType::String || Is(i + 2, "ESCAPE"))
+                if (!Is(i, "LIKE"))
+                    continue;
+
+                if (RewriteCaseSensitiveLike(i))
+                    continue;
+
+                if (Sig(i + 1).type != MySqlTokenType::String || Is(i + 2, "ESCAPE"))
                     continue;
 
                 if (MySqlDecodeString(Sig(i + 1).src).find('\\') == npos)
