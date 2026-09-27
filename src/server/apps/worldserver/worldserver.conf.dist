@@ -116,6 +116,14 @@ BindIP = "0.0.0.0"
 #                     (Use named pipes on Windows "enable-named-pipe" to [mysqld] section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database"
 #                     (Use Unix sockets on Unix/Linux)
+#                     "sqlite:path/to/file.sqlite"
+#                     (SQLite database file, relative paths are resolved from the working
+#                      directory of the server. The file is created when Updates.AutoSetup = 1)
+#                     "sqlite:db/auth.sqlite"       - (LoginDatabaseInfo)
+#                     "sqlite:db/world.sqlite"      - (WorldDatabaseInfo)
+#                     "sqlite:db/characters.sqlite" - (CharacterDatabaseInfo)
+#                     A string without a "sqlite:" prefix (or with a "mysql:" prefix) is a MySQL
+#                     connection string.
 #        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
 #                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
 #                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
@@ -131,6 +139,7 @@ CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
 #        Description: The amount of worker threads spawned to handle asynchronous (delayed) MySQL
 #                     statements. Each worker thread is mirrored with its own connection to the
 #                     MySQL server and their own thread on the MySQL server.
+#                     SQLite databases always use a single worker thread.
 #        Default:     1 - (LoginDatabase.WorkerThreads)
 #                     1 - (WorldDatabase.WorkerThreads)
 #                     1 - (CharacterDatabase.WorkerThreads)
@@ -165,10 +174,31 @@ MaxPingTime = 30
 #        Description: How many seconds between every reconnection attempt
 #                     and how many attempts will be performed in total
 #        Default:     20 attempts every 15 seconds
+#                     (Ignored by SQLite databases)
 #
 
 Database.Reconnect.Seconds = 15
 Database.Reconnect.Attempts = 20
+
+#
+#    Database.SQLite.BusyTimeoutMs
+#        Description: Time (in milliseconds) a SQLite connection waits for a lock held by another
+#                     connection or process before the statement fails and is retried.
+#        Default:     10000
+
+Database.SQLite.BusyTimeoutMs = 10000
+
+#
+#    Database.SQLite.Synchronous
+#        Description: SQLite synchronous mode of the write-ahead log (PRAGMA synchronous).
+#                     Back up SQLite databases only while the server is stopped (copy the
+#                     -wal and -shm files too) or with "VACUUM INTO" while it runs.
+#        Default:     "NORMAL" - (Committed transactions survive a crash of the server process)
+#                     "OFF"    - (Fastest, a power loss can corrupt the database)
+#                     "FULL"   - (Committed transactions survive a power loss)
+#                     "EXTRA"
+
+Database.SQLite.Synchronous = "NORMAL"
 
 #
 ###################################################################################################
@@ -236,6 +266,7 @@ SourceDirectory = ""
 #    MySQLExecutable
 #        Description: The path to your MySQL CLI binary.
 #                     If the path is left empty, built-in path from cmake is used.
+#                     Not used by SQLite databases.
 #        Example:     "C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe"
 #                     "mysql.exe"
 #                     "/usr/bin/mysql"
