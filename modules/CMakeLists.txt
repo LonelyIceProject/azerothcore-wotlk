@@ -300,9 +300,14 @@ endif()
 target_link_libraries(modules
   PRIVATE
     acore-core-interface
-    mysql
   PUBLIC
     game-interface)
+
+if (WITH_MYSQL)
+  target_link_libraries(modules
+    PRIVATE
+      mysql)
+endif()
 
 target_include_directories(modules
   PUBLIC
