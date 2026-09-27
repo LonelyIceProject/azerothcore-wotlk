@@ -26,8 +26,12 @@ add_subdirectory(stdfs)
 add_subdirectory(threads)
 add_subdirectory(utf8cpp)
 
-if ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR BUILD_TOOLS_DB_IMPORT)
+if (WITH_MYSQL AND ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR BUILD_TOOLS_DB_IMPORT))
   add_subdirectory(mysql)
+endif()
+
+if ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR (TOOLS_BUILD AND (NOT TOOLS_BUILD STREQUAL "none")))
+  add_subdirectory(sqlite)
 endif()
 
 if (BUILD_APPLICATION_WORLDSERVER OR BUILD_TOOLS_MAPS)

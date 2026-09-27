@@ -105,8 +105,13 @@ include(ConfigInstall)
 
 CU_RUN_HOOK("AFTER_LOAD_CMAKE_MODULES")
 
+option(WITH_MYSQL  "Build the MySQL database backend"  1)
+option(WITH_SQLITE "Build the SQLite database backend" 1)
+
 find_package(PCHSupport)
-find_package(MySQL REQUIRED)
+if(WITH_MYSQL)
+  find_package(MySQL REQUIRED)
+endif()
 
 if(UNIX AND WITH_PERFTOOLS)
     find_package(Gperftools)

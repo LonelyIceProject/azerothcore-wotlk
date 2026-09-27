@@ -563,6 +563,7 @@ public:
 
     //- Loads database type specific prepared statements
     void DoPrepareStatements() override;
+    void DoPrepareStatementOverrides();
 };
 
 #endif

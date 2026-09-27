@@ -10,11 +10,25 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
+add_subdirectory(Dialect)
+
+set(DATABASE_EXCLUDED_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/PrecompiledHeaders
+  ${CMAKE_CURRENT_SOURCE_DIR}/Dialect)
+
+if(NOT WITH_MYSQL)
+  list(APPEND DATABASE_EXCLUDED_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Database/Backends/MySQL)
+endif()
+
+if(NOT WITH_SQLITE)
+  list(APPEND DATABASE_EXCLUDED_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Database/Backends/SQLite)
+endif()
+
 CollectSourceFiles(
   ${CMAKE_CURRENT_SOURCE_DIR}
   PRIVATE_SOURCES
   # Exclude
-  ${CMAKE_CURRENT_SOURCE_DIR}/PrecompiledHeaders)
+  ${DATABASE_EXCLUDED_DIRS})
 
 if(USE_COREPCH)
   set(PRIVATE_PCH_HEADER PrecompiledHeaders/databasePCH.h)
@@ -39,7 +53,7 @@ CollectIncludeDirectories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   PUBLIC_INCLUDES
   # Exclude
-  ${CMAKE_CURRENT_SOURCE_DIR}/PrecompiledHeaders)
+  ${DATABASE_EXCLUDED_DIRS})
 
 target_include_directories(database
   PUBLIC
@@ -50,9 +64,25 @@ target_include_directories(database
 target_link_libraries(database
   PRIVATE
     acore-core-interface
-    mysql
+    sqlite3
   PUBLIC
-    common)
+    common
+    dbdialect)
+
+if(WITH_MYSQL)
+  target_link_libraries(database
+    PRIVATE
+      mysql)
+  target_compile_definitions(database
+    PRIVATE
+      ACORE_WITH_MYSQL)
+endif()
+
+if(WITH_SQLITE)
+  target_compile_definitions(database
+    PRIVATE
+      ACORE_WITH_SQLITE)
+endif()
 
 set_target_properties(database
   PROPERTIES

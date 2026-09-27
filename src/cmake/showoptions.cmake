@@ -98,6 +98,18 @@ if ( UNIX )
   endif()
 endif( UNIX )
 
+if( WITH_MYSQL )
+  message("* Build MySQL database backend    : Yes (default)")
+else()
+  message("* Build MySQL database backend    : No")
+endif()
+
+if( WITH_SQLITE )
+  message("* Build SQLite database backend   : Yes (default)")
+else()
+  message("* Build SQLite database backend   : No")
+endif()
+
 if( WIN32 )
   if( USE_MYSQL_SOURCES )
   message("* Use MySQL sourcetree            : Yes (default)")

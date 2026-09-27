@@ -18,6 +18,7 @@
 #ifndef DBUpdater_h__
 #define DBUpdater_h__
 
+#include "DatabaseBackend.h"
 #include "DatabaseEnv.h"
 #include "DatabaseUpdatePool.h"
 #include "Define.h"
@@ -59,6 +60,7 @@ public:
     static std::string GetCorrectedMySQLExecutable();
 
     static bool CheckExecutable();
+    static bool CheckPrerequisites(DatabaseBackend backend);
 
     // Counts every update file that failed to apply, in any mode. A dry run does not throw
     // on a bad file, so it keeps going and a single run reports all of them; whoever ends

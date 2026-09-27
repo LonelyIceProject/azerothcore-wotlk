@@ -28,7 +28,7 @@ if (TOOLS_BUILD MATCHES "-only")
   endif()
 
   if (TOOLS_BUILD STREQUAL "db-only")
-    list(APPEND BUILD_TOOLS_WHITELIST dbimport)
+    list(APPEND BUILD_TOOLS_WHITELIST dbimport sqlconv)
   endif()
 endif()
 
@@ -128,6 +128,12 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
 
     # Install config
     CopyToolConfig(${TOOL_PROJECT_NAME} ${TOOL_NAME})
+  elseif (${TOOL_PROJECT_NAME} STREQUAL "sqlconv")
+    target_link_libraries(${TOOL_PROJECT_NAME}
+      PRIVATE
+        common
+        dbdialect
+        acore-core-interface)
   else()
 
     target_link_libraries(${TOOL_PROJECT_NAME}
