@@ -423,7 +423,15 @@ template <class T>
 void DatabaseWorkerPool<T>::RunOnSyncConnection(std::function<void(DatabaseConnection&)> const& fn)
 {
     T* connection = GetFreeConnection();
-    fn(*connection);
+    try
+    {
+        fn(*connection);
+    }
+    catch (...)
+    {
+        connection->Unlock();
+        throw;
+    }
     connection->Unlock();
 }
 template <class T>

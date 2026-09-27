@@ -284,6 +284,14 @@ void ModuleDatabasePool::RunOnSyncConnection(std::function<void(DatabaseConnecti
         return;
 
     DatabaseConnection* conn = GetFreeConnection();
-    fn(*conn);
+    try
+    {
+        fn(*conn);
+    }
+    catch (...)
+    {
+        conn->Unlock();
+        throw;
+    }
     conn->Unlock();
 }
