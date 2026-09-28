@@ -22,8 +22,8 @@ add_library(dbdialect STATIC
 target_include_directories(dbdialect
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src/common
-    ${CMAKE_SOURCE_DIR}/src/server/database/Database)
+    ${AC_SOURCE_DIR}/src/common
+    ${AC_SOURCE_DIR}/src/server/database/Database)
 
 target_link_libraries(dbdialect
   PRIVATE

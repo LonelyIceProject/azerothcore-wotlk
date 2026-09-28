@@ -10,12 +10,20 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
+# Also run as a script (cmake -P) at build time, where only the -D values are known.
+if (NOT AC_SOURCE_DIR)
+  set(AC_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
+endif()
+if (NOT AC_BINARY_DIR)
+  set(AC_BINARY_DIR "${CMAKE_BINARY_DIR}")
+endif()
+
 # User has manually chosen to ignore the git-tests, so throw them a warning.
 # This is done EACH compile so they can be alerted about the consequences.
 
 if(NOT BUILDDIR)
   # Workaround for funny MSVC behaviour - this segment is only used when using cmake gui
-  set(BUILDDIR ${CMAKE_BINARY_DIR})
+  set(BUILDDIR ${AC_BINARY_DIR})
 endif()
 
 if(WITHOUT_GIT)
@@ -34,7 +42,7 @@ else()
     # Create a revision-string that we can use
     execute_process(
       COMMAND "${GIT_EXECUTABLE}" describe --long --match 0.1 --dirty=+ --abbrev=12 --always
-      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      WORKING_DIRECTORY "${AC_SOURCE_DIR}"
       OUTPUT_VARIABLE rev_info
       OUTPUT_STRIP_TRAILING_WHITESPACE
 
@@ -43,7 +51,7 @@ else()
     # And grab the commits timestamp
     execute_process(
       COMMAND "${GIT_EXECUTABLE}" show -s --format=%ci
-      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      WORKING_DIRECTORY "${AC_SOURCE_DIR}"
       OUTPUT_VARIABLE rev_date
       OUTPUT_STRIP_TRAILING_WHITESPACE
       ERROR_QUIET
@@ -52,7 +60,7 @@ else()
     # Also retrieve branch name
     execute_process(
       COMMAND "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
-      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      WORKING_DIRECTORY "${AC_SOURCE_DIR}"
       OUTPUT_VARIABLE rev_branch
       OUTPUT_STRIP_TRAILING_WHITESPACE
       ERROR_QUIET
@@ -88,7 +96,7 @@ set(rev_day ${CMAKE_MATCH_3})
 # Create the actual revision.h file from the above params
 if(NOT "${rev_hash_cached}" STREQUAL "${rev_hash}" OR NOT "${rev_branch_cached}" STREQUAL "${rev_branch}" OR NOT EXISTS "${BUILDDIR}/revision.h")
   configure_file(
-    "${CMAKE_SOURCE_DIR}/src/cmake/revision.h.in.cmake"
+    "${AC_SOURCE_DIR}/src/cmake/revision.h.in.cmake"
     "${BUILDDIR}/revision.h"
     @ONLY
   )

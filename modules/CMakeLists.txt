@@ -260,10 +260,10 @@ foreach(SOURCE_MODULE ${MODULES_MODULE_LIST})
       if(MSVC)
         # Place the script modules in the script subdirectory
         set_target_properties(${MODULE_SOURCE_PROJECT_NAME} PROPERTIES
-          RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug/scripts
-          RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release/scripts
-          RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/bin/RelWithDebInfo/scripts
-          RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/bin/MinSizeRel/scripts)
+          RUNTIME_OUTPUT_DIRECTORY_DEBUG ${AC_BINARY_DIR}/bin/Debug/scripts
+          RUNTIME_OUTPUT_DIRECTORY_RELEASE ${AC_BINARY_DIR}/bin/Release/scripts
+          RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${AC_BINARY_DIR}/bin/RelWithDebInfo/scripts
+          RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${AC_BINARY_DIR}/bin/MinSizeRel/scripts)
       endif()
     endif()
   else()
@@ -316,7 +316,7 @@ target_include_directories(modules
 
 # Enables Devs to Include a cmake file in their module that will get run inline with the config.
 foreach(SOURCE_MODULE ${MODULES_MODULE_LIST})
-	include("${CMAKE_SOURCE_DIR}/modules/${SOURCE_MODULE}/${SOURCE_MODULE}.cmake" OPTIONAL)
+	include("${AC_SOURCE_DIR}/modules/${SOURCE_MODULE}/${SOURCE_MODULE}.cmake" OPTIONAL)
 endforeach()
 
 set_target_properties(modules
@@ -345,7 +345,7 @@ endif()
 
 # Stores the absolut path of the given config module in the variable
 function(GetPathToModuleConfig module variable)
-  set(${variable} "${CMAKE_SOURCE_DIR}/modules/${module}/conf" PARENT_SCOPE)
+  set(${variable} "${AC_SOURCE_DIR}/modules/${module}/conf" PARENT_SCOPE)
 endfunction()
 
 message(STATUS "* Modules config list:
@@ -404,8 +404,8 @@ if (MOD_ALE_FOUND)
 
     add_custom_command(TARGET modules
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/${MSVC_CONFIGURATION_NAME}lua_scripts/extensions/"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MOD_ALE_PATH}/LuaEngine/extensions" "${CMAKE_BINARY_DIR}/bin/${MSVC_CONFIGURATION_NAME}lua_scripts/extensions/")
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/${MSVC_CONFIGURATION_NAME}lua_scripts/extensions/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MOD_ALE_PATH}/LuaEngine/extensions" "${AC_BINARY_DIR}/bin/${MSVC_CONFIGURATION_NAME}lua_scripts/extensions/")
   endif()
 
   install(DIRECTORY "${MOD_ALE_PATH}/LuaEngine/extensions" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/lua_scripts/")

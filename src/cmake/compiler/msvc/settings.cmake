@@ -11,7 +11,9 @@
 #
 
 # set up output paths for executable binaries (.exe-files, and .dll-files on DLL-capable platforms)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+if (NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${AC_BINARY_DIR}/bin)
+endif()
 
 set(MSVC_EXPECTED_VERSION 19.24)
 set(MSVC_EXPECTED_VERSION_STRING "Microsoft Visual Studio 2019 16.4")

@@ -12,7 +12,7 @@
 
 # Returns the base path to the script directory in the source directory
 function(GetModulesBasePath variable)
-  set(${variable} "${CMAKE_SOURCE_DIR}/modules" PARENT_SCOPE)
+  set(${variable} "${AC_SOURCE_DIR}/modules" PARENT_SCOPE)
 endfunction()
 
 # Stores the absolut path of the given module in the variable

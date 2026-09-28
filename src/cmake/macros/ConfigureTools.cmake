@@ -15,7 +15,7 @@ set(BUILD_TOOLS_DB_IMPORT 0)
 
 # Returns the base path to the tools directory in the source directory
 function(GetToolsBasePath variable)
-  set(${variable} "${CMAKE_SOURCE_DIR}/src/tools" PARENT_SCOPE)
+  set(${variable} "${AC_SOURCE_DIR}/src/tools" PARENT_SCOPE)
 endfunction()
 
 # Stores the absolut path of the given tool in the variable

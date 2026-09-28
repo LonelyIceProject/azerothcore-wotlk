@@ -7,7 +7,7 @@
  #define _CMAKE_COMMAND             R"(@CMAKE_COMMAND@)"
  #define _CMAKE_VERSION             R"(@CMAKE_VERSION@)"
  #define _CMAKE_HOST_SYSTEM         R"(@CMAKE_HOST_SYSTEM_NAME@ @CMAKE_HOST_SYSTEM_VERSION@)"
- #define _SOURCE_DIRECTORY          R"(@CMAKE_SOURCE_DIR@)"
+ #define _SOURCE_DIRECTORY          R"(@AC_SOURCE_DIR@)"
  #define _BUILD_DIRECTORY           R"(@BUILDDIR@)"
  #define _MYSQL_EXECUTABLE          R"(@MYSQL_EXECUTABLE@)"
  #define AC_COMPANYNAME_STR         "AzerothCore"

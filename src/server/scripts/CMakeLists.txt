@@ -205,10 +205,10 @@ foreach(SCRIPT_MODULE ${SCRIPT_MODULE_LIST})
       if(MSVC)
         # Place the script modules in the script subdirectory
         set_target_properties(${SCRIPT_MODULE_PROJECT_NAME} PROPERTIES
-          RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug/scripts
-          RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release/scripts
-          RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/bin/RelWithDebInfo/scripts
-          RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/bin/MinSizeRel/scripts)
+          RUNTIME_OUTPUT_DIRECTORY_DEBUG ${AC_BINARY_DIR}/bin/Debug/scripts
+          RUNTIME_OUTPUT_DIRECTORY_RELEASE ${AC_BINARY_DIR}/bin/Release/scripts
+          RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${AC_BINARY_DIR}/bin/RelWithDebInfo/scripts
+          RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${AC_BINARY_DIR}/bin/MinSizeRel/scripts)
       endif()
     endif()
   else()

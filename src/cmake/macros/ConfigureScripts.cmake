@@ -14,7 +14,7 @@
 function(WarnAboutSpacesInBuildPath)
   # Only check win32 since unix doesn't allow spaces in paths
   if(WIN32)
-    string(FIND "${CMAKE_BINARY_DIR}" " " SPACE_INDEX_POS)
+    string(FIND "${AC_BINARY_DIR}" " " SPACE_INDEX_POS)
 
     if(SPACE_INDEX_POS GREATER -1)
       message("")
@@ -27,7 +27,7 @@ endfunction()
 
 # Returns the base path to the script directory in the source directory
 function(GetScriptsBasePath variable)
-  set(${variable} "${CMAKE_SOURCE_DIR}/src/server/scripts" PARENT_SCOPE)
+  set(${variable} "${AC_SOURCE_DIR}/src/server/scripts" PARENT_SCOPE)
 endfunction()
 
 # Stores the absolut path of the given module in the variable

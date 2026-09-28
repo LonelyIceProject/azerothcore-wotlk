@@ -25,6 +25,11 @@ endif()
 # Set projectname (must be done AFTER setting configurationtypes)
 project(AzerothCore VERSION 3.0.0 LANGUAGES CXX C)
 
+# Root of the AzerothCore sources and build tree. They differ from CMAKE_SOURCE_DIR / CMAKE_BINARY_DIR when another
+# project adds AzerothCore with add_subdirectory() to build its own applications or plugins against it.
+set(AC_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(AC_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
 # add this options before PROJECT keyword
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
@@ -38,11 +43,11 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH 1)
 # Export compile commands for IDE support
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(AC_PATH_ROOT "${CMAKE_SOURCE_DIR}")
+set(AC_PATH_ROOT "${AC_SOURCE_DIR}")
 
 # set macro-directory
 list(APPEND CMAKE_MODULE_PATH
-        "${CMAKE_SOURCE_DIR}/src/cmake/macros")
+        "${AC_SOURCE_DIR}/src/cmake/macros")
 
 include(CheckCXXSourceRuns)
 include(CheckIncludeFiles)
@@ -60,7 +65,7 @@ include(src/cmake/ac_macros.cmake)
 include(conf/dist/config.cmake)
 
 # load custom configurations for cmake if exists
-if(EXISTS "${CMAKE_SOURCE_DIR}/conf/config.cmake")
+if(EXISTS "${AC_SOURCE_DIR}/conf/config.cmake")
     include(conf/config.cmake)
 endif()
 
@@ -69,7 +74,7 @@ endif()
 #
 
 # add modules and dependencies
-CU_SUBDIRLIST(sub_DIRS  "${CMAKE_SOURCE_DIR}/modules" FALSE FALSE)
+CU_SUBDIRLIST(sub_DIRS  "${AC_SOURCE_DIR}/modules" FALSE FALSE)
 FOREACH(subdir ${sub_DIRS})
 
     get_filename_component(MODULENAME ${subdir} NAME)
@@ -78,7 +83,7 @@ FOREACH(subdir ${sub_DIRS})
         continue()
     endif()
 
-    STRING(REPLACE "${CMAKE_SOURCE_DIR}/" "" subdir_rel ${subdir})
+    STRING(REPLACE "${AC_SOURCE_DIR}/" "" subdir_rel ${subdir})
     if(EXISTS "${subdir}/CMakeLists.txt")
         add_subdirectory("${subdir_rel}")
     endif()
@@ -155,7 +160,7 @@ set(AC_PLUGIN_SOURCE_DIRS "" CACHE STRING "Plugin source folders built with the 
 if (BUILD_APPLICATION_WORLDSERVER AND BUILD_SHARED_LIBS)
   foreach(plugin_dir ${AC_PLUGIN_SOURCE_DIRS})
     get_filename_component(plugin_name "${plugin_dir}" NAME)
-    add_subdirectory("${plugin_dir}" "${CMAKE_BINARY_DIR}/plugins/${plugin_name}")
+    add_subdirectory("${plugin_dir}" "${AC_BINARY_DIR}/plugins/${plugin_name}")
   endforeach()
 endif()
 
@@ -189,8 +194,8 @@ if (BUILD_TESTING AND BUILD_APPLICATION_WORLDSERVER)
         COMMAND ctest
         # Run the graphical front-end for code coverage.
         COMMAND lcov    --directory src --capture --output-file coverage.info
-        COMMAND lcov    --remove coverage.info '/usr/*' '${CMAKE_BINARY_DIR}/googletest/*' '${CMAKE_CURRENT_SOURCE_DIR}/src/test/*' --output-file coverage.info
+        COMMAND lcov    --remove coverage.info '/usr/*' '${AC_BINARY_DIR}/googletest/*' '${CMAKE_CURRENT_SOURCE_DIR}/src/test/*' --output-file coverage.info
         COMMAND genhtml -o ${CMAKE_CURRENT_SOURCE_DIR}/coverage-report coverage.info
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        WORKING_DIRECTORY "${AC_BINARY_DIR}"
         )
 endif()

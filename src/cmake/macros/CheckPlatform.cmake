@@ -19,7 +19,7 @@ else()
     MESSAGE(STATUS "Detected 32-bit platform")
 endif()
 
-include("${CMAKE_SOURCE_DIR}/src/cmake/platform/settings.cmake")
+include("${AC_SOURCE_DIR}/src/cmake/platform/settings.cmake")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64|x86_64|AMD64")
   set(ACORE_SYSTEM_PROCESSOR "amd64")
@@ -46,9 +46,9 @@ endif()
 message(STATUS "Detected ${ACORE_SYSTEM_PROCESSOR} processor architecture")
 
 if(WIN32)
-  include("${CMAKE_SOURCE_DIR}/src/cmake/platform/win/settings.cmake")
+  include("${AC_SOURCE_DIR}/src/cmake/platform/win/settings.cmake")
 elseif(UNIX)
-  include("${CMAKE_SOURCE_DIR}/src/cmake/platform/unix/settings.cmake")
+  include("${AC_SOURCE_DIR}/src/cmake/platform/unix/settings.cmake")
 endif()
 
-include("${CMAKE_SOURCE_DIR}/src/cmake/platform/after_platform.cmake")
+include("${AC_SOURCE_DIR}/src/cmake/platform/after_platform.cmake")

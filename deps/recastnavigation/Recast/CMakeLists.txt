@@ -25,7 +25,7 @@ set(Recast_STAT_SRCS
 
 if(WIN32)
   include_directories(
-    ${CMAKE_SOURCE_DIR}/deps/zlib
+    ${AC_SOURCE_DIR}/deps/zlib
   )
 endif()
 

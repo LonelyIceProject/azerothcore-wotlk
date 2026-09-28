@@ -57,7 +57,7 @@ CollectIncludeDirectories(
 target_include_directories(common
   PUBLIC
     # Provide the binary dir for all child targets
-    ${CMAKE_BINARY_DIR}
+    ${AC_BINARY_DIR}
     ${PUBLIC_INCLUDES}
   PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR})

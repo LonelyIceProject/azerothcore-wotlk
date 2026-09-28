@@ -136,8 +136,8 @@ endif()
 if ( USE_REAL_LIBSIDECAR )
   message("* Use stub for libsidecar         : No")
   # Required ABI only applies when linking the real shared library (include/).
-  if (EXISTS "${CMAKE_SOURCE_DIR}/deps/libsidecar/include/tc9_version.h")
-    file(STRINGS "${CMAKE_SOURCE_DIR}/deps/libsidecar/include/tc9_version.h" _tc9_ver_line
+  if (EXISTS "${AC_SOURCE_DIR}/deps/libsidecar/include/tc9_version.h")
+    file(STRINGS "${AC_SOURCE_DIR}/deps/libsidecar/include/tc9_version.h" _tc9_ver_line
       REGEX "^#define TC9_VERSION_STRING ")
     if (_tc9_ver_line)
       string(REGEX REPLACE "^#define TC9_VERSION_STRING \"([^\"]+)\".*" "\\1" TC9_VENDORED_VERSION "${_tc9_ver_line}")

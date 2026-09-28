@@ -15,7 +15,7 @@ set(BUILD_APPLICATION_WORLDSERVER 0)
 
 # Returns the base path to the apps directory in the source directory
 function(GetApplicationsBasePath variable)
-  set(${variable} "${CMAKE_SOURCE_DIR}/src/server/apps" PARENT_SCOPE)
+  set(${variable} "${AC_SOURCE_DIR}/src/server/apps" PARENT_SCOPE)
 endfunction()
 
 # Stores the absolut path of the given app in the variable

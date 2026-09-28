@@ -10,10 +10,10 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
-# Need to pass old ${CMAKE_BINARY_DIR} as param because its different at build stage
+# Need to pass old ${AC_BINARY_DIR} as param because its different at build stage
 add_custom_target(revision.h ALL
-  COMMAND "${CMAKE_COMMAND}" -DBUILDDIR="${CMAKE_BINARY_DIR}" -P "${CMAKE_SOURCE_DIR}/src/cmake/genrev.cmake" "${CMAKE_BINARY_DIR}"
-  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+  COMMAND "${CMAKE_COMMAND}" -DBUILDDIR="${AC_BINARY_DIR}" -DAC_SOURCE_DIR="${AC_SOURCE_DIR}" -DAC_BINARY_DIR="${AC_BINARY_DIR}" -P "${AC_SOURCE_DIR}/src/cmake/genrev.cmake" "${AC_BINARY_DIR}"
+  WORKING_DIRECTORY "${AC_SOURCE_DIR}")
 
 set_target_properties(revision.h
   PROPERTIES

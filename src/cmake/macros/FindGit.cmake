@@ -10,7 +10,7 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
-include(${CMAKE_SOURCE_DIR}/src/cmake/macros/EnsureVersion.cmake)
+include(${AC_SOURCE_DIR}/src/cmake/macros/EnsureVersion.cmake)
 
 set(_REQUIRED_GIT_VERSION "1.7")
 
@@ -31,7 +31,7 @@ else()
   message(STATUS "Found git binary : ${GIT_EXECUTABLE}")
   execute_process(
     COMMAND "${GIT_EXECUTABLE}" --version
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    WORKING_DIRECTORY "${AC_SOURCE_DIR}"
     OUTPUT_VARIABLE _GIT_VERSION
     ERROR_QUIET
   )

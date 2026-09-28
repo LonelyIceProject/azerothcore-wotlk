@@ -162,8 +162,8 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
   target_include_directories(${TOOL_PROJECT_NAME}
     PUBLIC
       ${TOOL_PUBLIC_INCLUDES}
-      ${CMAKE_SOURCE_DIR}/src
-      ${CMAKE_SOURCE_DIR}/modules
+      ${AC_SOURCE_DIR}/src
+      ${AC_SOURCE_DIR}/modules
     PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR}/${TOOL_NAME})
 
@@ -183,11 +183,11 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
       if("${CMAKE_MAKE_PROGRAM}" MATCHES "MSBuild")
         add_custom_command(TARGET ${TOOL_PROJECT_NAME}
           POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOURCE_TOOL_PATH}/mmaps-config.yaml" "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/mmaps-config.yaml")
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOURCE_TOOL_PATH}/mmaps-config.yaml" "${AC_BINARY_DIR}/bin/$(ConfigurationName)/mmaps-config.yaml")
       elseif(MINGW)
         add_custom_command(TARGET ${TOOL_PROJECT_NAME}
           POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOURCE_TOOL_PATH}/mmaps-config.yaml" "${CMAKE_BINARY_DIR}/bin/mmaps-config.yaml")
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOURCE_TOOL_PATH}/mmaps-config.yaml" "${AC_BINARY_DIR}/bin/mmaps-config.yaml")
       endif()
     endif()
 

@@ -11,7 +11,9 @@
 #
 
 # set up output paths for executable binaries (.exe-files, and .dll-files on DLL-capable platforms)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+if (NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${AC_BINARY_DIR}/bin)
+endif()
 
 if(PLATFORM EQUAL 32)
   # Required on 32-bit systems to enable SSE2 (standard on x64)

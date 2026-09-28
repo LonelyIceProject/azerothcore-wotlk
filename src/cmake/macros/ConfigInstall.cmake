@@ -22,17 +22,17 @@ function(CopyApplicationConfig projectName appName)
     if("${CMAKE_MAKE_PROGRAM}" MATCHES "MSBuild")
       add_custom_command(TARGET ${projectName}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/configs")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/$(ConfigurationName)/configs")
       add_custom_command(TARGET ${projectName}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist" "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/configs")
+        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist" "${AC_BINARY_DIR}/bin/$(ConfigurationName)/configs")
     elseif(MINGW)
       add_custom_command(TARGET ${servertype}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/configs")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/configs")
       add_custom_command(TARGET ${servertype}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist ${CMAKE_BINARY_DIR}/bin/configs")
+        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist ${AC_BINARY_DIR}/bin/configs")
     endif()
   endif()
 
@@ -50,17 +50,17 @@ function(CopyToolConfig projectName appName)
     if("${CMAKE_MAKE_PROGRAM}" MATCHES "MSBuild")
       add_custom_command(TARGET ${projectName}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/configs")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/$(ConfigurationName)/configs")
       add_custom_command(TARGET ${projectName}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist" "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/configs")
+        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist" "${AC_BINARY_DIR}/bin/$(ConfigurationName)/configs")
     elseif(MINGW)
       add_custom_command(TARGET ${servertype}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/configs")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/configs")
       add_custom_command(TARGET ${servertype}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist ${CMAKE_BINARY_DIR}/bin/configs")
+        COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_APP_PATH}/${appName}.conf.dist ${AC_BINARY_DIR}/bin/configs")
     endif()
   endif()
 
@@ -83,17 +83,17 @@ function(CopyModuleConfig configDir)
     if("${CMAKE_MAKE_PROGRAM}" MATCHES "MSBuild")
       add_custom_command(TARGET modules
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/${postPath}")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/$(ConfigurationName)/${postPath}")
       add_custom_command(TARGET modules
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${configDir}" "${CMAKE_BINARY_DIR}/bin/$(ConfigurationName)/${postPath}")
+        COMMAND ${CMAKE_COMMAND} -E copy "${configDir}" "${AC_BINARY_DIR}/bin/$(ConfigurationName)/${postPath}")
     elseif(MINGW)
       add_custom_command(TARGET modules
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bin/${postPath}")
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${AC_BINARY_DIR}/bin/${postPath}")
       add_custom_command(TARGET modules
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${configDir} ${CMAKE_BINARY_DIR}/bin/${postPath}")
+        COMMAND ${CMAKE_COMMAND} -E copy "${configDir} ${AC_BINARY_DIR}/bin/${postPath}")
     endif()
   endif()
 
