@@ -45,8 +45,8 @@ private:
     static uint8 _maxRaces; // Max playable race + 1
 
     static uint32 _playableRaceMask;
-    static uint32 _allianceRaceMask;
-    static uint32 _hordeRaceMask;
+    AC_GAME_API static uint32 _allianceRaceMask;
+    AC_GAME_API static uint32 _hordeRaceMask;
 };
 
 #define sRaceMgr RaceMgr::instance()

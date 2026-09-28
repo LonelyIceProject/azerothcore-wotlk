@@ -41,7 +41,11 @@ target_link_libraries(game-interface
   INTERFACE
     shared)
 
-add_library(game STATIC
+target_compile_definitions(game-interface
+  INTERFACE
+    AC_PLUGIN_ABI="${AC_PLUGIN_ABI}")
+
+add_library(game
   ${PRIVATE_SOURCES})
 
 add_dependencies(game revision.h)
@@ -53,6 +57,7 @@ target_include_directories(game
 target_link_libraries(game
   PRIVATE
     acore-core-interface
+    fkYAML
   PUBLIC
     game-interface
     libsidecar)
@@ -61,6 +66,8 @@ set_target_properties(game
   PROPERTIES
     FOLDER
       "server")
+
+AcoreExportLibrary(game GAME)
 
 # Generate precompiled header
 if (USE_COREPCH)

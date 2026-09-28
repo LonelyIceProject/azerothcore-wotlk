@@ -45,6 +45,8 @@ class AC_DATABASE_API ModuleDatabasePool : public DatabaseUpdatePool
 public:
     ModuleDatabasePool();
     virtual ~ModuleDatabasePool();
+    ModuleDatabasePool(ModuleDatabasePool const&) = delete;
+    ModuleDatabasePool& operator=(ModuleDatabasePool const&) = delete;
 
     void SetConnectionInfo(std::string_view infoString, uint8 synchThreads);
 

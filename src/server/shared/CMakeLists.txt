@@ -40,3 +40,5 @@ set_target_properties(shared
   PROPERTIES
     FOLDER
       "server")
+
+AcoreExportLibrary(shared SHARED)

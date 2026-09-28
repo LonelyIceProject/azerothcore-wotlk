@@ -63,7 +63,7 @@ public:                                                 // constructors and glob
     void SaveToDB(CharacterDatabaseTransaction trans);
     void LoadFromDB(PreparedQueryResult result);
 public:                                                 // statics
-    static const int32 PointsInRank[MAX_REPUTATION_RANK];
+    AC_GAME_API static const int32 PointsInRank[MAX_REPUTATION_RANK];
     static const int32 Reputation_Cap;
     static const int32 Reputation_Bottom;
 

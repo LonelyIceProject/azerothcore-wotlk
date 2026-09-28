@@ -120,7 +120,7 @@ struct PackedGuidReader
 class ObjectGuid
 {
     public:
-        static ObjectGuid const Empty;
+        AC_GAME_API static ObjectGuid const Empty;
 
         typedef uint32 LowType;
 

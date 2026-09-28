@@ -389,9 +389,9 @@ typedef std::multimap<uint32, ScriptInfo> ScriptMap;
 typedef std::map<uint32, ScriptMap > ScriptMapMap;
 typedef std::multimap<uint32, uint32> SpellScriptsContainer;
 typedef std::pair<SpellScriptsContainer::iterator, SpellScriptsContainer::iterator> SpellScriptsBounds;
-extern ScriptMapMap sSpellScripts;
-extern ScriptMapMap sEventScripts;
-extern ScriptMapMap sWaypointScripts;
+extern AC_GAME_API ScriptMapMap sSpellScripts;
+extern AC_GAME_API ScriptMapMap sEventScripts;
+extern AC_GAME_API ScriptMapMap sWaypointScripts;
 
 std::string GetScriptsTableNameByType(ScriptsType type);
 ScriptMapMap* GetScriptsMapByType(ScriptsType type);
@@ -699,7 +699,7 @@ struct LanguageDesc
     uint32   skill_id;
 };
 
-extern LanguageDesc lang_description[LANGUAGES_COUNT];
+extern AC_GAME_API LanguageDesc lang_description[LANGUAGES_COUNT];
 LanguageDesc const* GetLanguageDescByID(uint32 lang);
 
 struct DungeonEncounter

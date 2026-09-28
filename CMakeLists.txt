@@ -102,6 +102,8 @@ include(CheckPlatform)
 include(GroupSources)
 include(AutoCollect)
 include(ConfigInstall)
+include(AcoreExport)
+include(AcorePlugin)
 
 CU_RUN_HOOK("AFTER_LOAD_CMAKE_MODULES")
 
@@ -146,6 +148,15 @@ add_subdirectory(src)
 if (BUILD_APPLICATION_WORLDSERVER)
   # add modules sources
   add_subdirectory(modules)
+endif()
+
+# Plugins built together with the core: each folder holds a plugin.json and a CMakeLists.txt calling AddPlugin().
+set(AC_PLUGIN_SOURCE_DIRS "" CACHE STRING "Plugin source folders built with the core (;-separated)")
+if (BUILD_APPLICATION_WORLDSERVER AND BUILD_SHARED_LIBS)
+  foreach(plugin_dir ${AC_PLUGIN_SOURCE_DIRS})
+    get_filename_component(plugin_name "${plugin_dir}" NAME)
+    add_subdirectory("${plugin_dir}" "${CMAKE_BINARY_DIR}/plugins/${plugin_name}")
+  endforeach()
 endif()
 
 CU_RUN_HOOK("AFTER_SRC_LOAD")

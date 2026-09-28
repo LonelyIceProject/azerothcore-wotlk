@@ -88,6 +88,8 @@ set_target_properties(common
     FOLDER
       "server")
 
+AcoreExportLibrary(common COMMON)
+
 # Generate precompiled header
 if (USE_COREPCH)
   add_cxx_pch(common ${PRIVATE_PCH_HEADER})

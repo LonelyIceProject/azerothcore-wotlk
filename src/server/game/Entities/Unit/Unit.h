@@ -208,8 +208,8 @@ enum class DeathState : uint8
     JustRespawned = 4,
 };
 
-extern float baseMoveSpeed[MAX_MOVE_TYPE];
-extern float playerBaseMoveSpeed[MAX_MOVE_TYPE];
+extern AC_GAME_API float baseMoveSpeed[MAX_MOVE_TYPE];
+extern AC_GAME_API float playerBaseMoveSpeed[MAX_MOVE_TYPE];
 
 enum WeaponAttackType : uint8
 {
