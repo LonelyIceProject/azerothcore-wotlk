@@ -150,6 +150,14 @@ CU_RUN_HOOK("BEFORE_SRC_LOAD")
 # add core sources
 add_subdirectory(src)
 
+# The hooks mod-playerbots needs in the core, also when the module is loaded as a plugin instead of being
+# built from modules/.
+option(WITH_PLAYERBOTS_HOOKS "Build the core with the hooks mod-playerbots needs" OFF)
+if (WITH_PLAYERBOTS_HOOKS AND BUILD_APPLICATION_WORLDSERVER)
+  target_compile_options(database PRIVATE -DMOD_PLAYERBOTS)
+  target_compile_options(game-interface INTERFACE -DMOD_PLAYERBOTS)
+endif()
+
 if (BUILD_APPLICATION_WORLDSERVER)
   # add modules sources
   add_subdirectory(modules)

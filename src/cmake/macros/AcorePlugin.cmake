@@ -1,10 +1,12 @@
 # Plugins: shared libraries loaded by PluginMgr at run time (doc/Plugins.md).
 #
-#   AddPlugin(<target> SOURCES <files...> [LINK <libraries...>])
+#   AddPlugin(<target> SOURCES <files...> [LINK <libraries...>] [INCLUDES <dirs...>] [EXPORT_ALL])
 #
 # called from a plugin's CMakeLists.txt next to its plugin.json. Builds <target> as a shared library named
 # after server.library in the manifest and lays the plugin out under AC_PLUGINS_OUTPUT_DIR/<id>/ the way the
-# loader expects: plugin.json, server/<platform>/<library>, and the sql, conf, lua and client folders.
+# loader expects: plugin.json, server/<platform>/<library>, and the data, sql, conf, lua and client folders.
+# INCLUDES are public include folders for plugins that link against this one; EXPORT_ALL exports every
+# symbol of the library for them (Windows needs it, other platforms export by default).
 
 if (WIN32)
   set(AC_PLUGIN_PLATFORM "windows-x64")
@@ -24,10 +26,15 @@ endif()
 
 set(AC_PLUGIN_ABI "azerothcore-dev" CACHE STRING "Name of the plugin binary interface of this build; plugins must be built with the same value")
 
-set(AC_PLUGINS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugins" CACHE STRING "Where built plugins are laid out")
+if (CMAKE_CONFIGURATION_TYPES)
+  set(AC_PLUGINS_DEFAULT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/plugins")
+else()
+  set(AC_PLUGINS_DEFAULT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/plugins")
+endif()
+set(AC_PLUGINS_OUTPUT_DIR "${AC_PLUGINS_DEFAULT_DIR}" CACHE STRING "Where built plugins are laid out (next to worldserver by default)")
 
 function(AddPlugin target)
-  cmake_parse_arguments(P "" "" "SOURCES;LINK" ${ARGN})
+  cmake_parse_arguments(P "EXPORT_ALL" "" "SOURCES;LINK;INCLUDES" ${ARGN})
 
   if (NOT BUILD_SHARED_LIBS)
     message(FATAL_ERROR "Plugin ${target} needs the core built as shared libraries (-DWITH_DYNAMIC_LINKING=ON)")
@@ -44,6 +51,17 @@ function(AddPlugin target)
       game
       ${P_LINK})
   target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  # Lets plugin headers choose dllexport / dllimport for data shared between plugin libraries.
+  target_compile_definitions(${target} PRIVATE AC_PLUGIN_BUILD)
+  if (P_INCLUDES)
+    target_include_directories(${target} PUBLIC ${P_INCLUDES})
+  endif()
+  if (P_EXPORT_ALL)
+    set_target_properties(${target} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  endif()
+  if (MSVC)
+    target_compile_options(${target} PRIVATE /bigobj)
+  endif()
 
   set(dir "${AC_PLUGINS_OUTPUT_DIR}/${id}")
   set_target_properties(${target} PROPERTIES
@@ -54,7 +72,7 @@ function(AddPlugin target)
 
   add_custom_command(TARGET ${target} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" "${dir}/plugin.json")
-  foreach(sub sql conf lua client)
+  foreach(sub data sql conf lua client)
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${sub}")
       add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/${sub}" "${dir}/${sub}")
