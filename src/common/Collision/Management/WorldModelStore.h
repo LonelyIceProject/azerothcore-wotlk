@@ -26,11 +26,7 @@
 class WorldModelStore
 {
 public:
-    static WorldModelStore* instance()
-    {
-        static WorldModelStore instance;
-        return &instance;
-    }
+    static WorldModelStore* instance();
 
     std::shared_ptr<VMAP::WorldModel> AcquireModelInstance(std::string const& basepath, std::string const& filename, uint32 flags);
 

@@ -41,3 +41,9 @@ std::shared_ptr<VMAP::WorldModel> WorldModelStore::AcquireModelInstance(std::str
 
     return model->second;
 }
+
+WorldModelStore* WorldModelStore::instance()
+{
+    static WorldModelStore instance;
+    return &instance;
+}
