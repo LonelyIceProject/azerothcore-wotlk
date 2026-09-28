@@ -104,6 +104,20 @@ void UpdateFetcher::FillFileListRecursively(Path const& path, LocaleFileStorage&
     }
 }
 
+namespace
+{
+    std::vector<std::pair<std::string, std::filesystem::path>>& PluginDirectories()
+    {
+        static std::vector<std::pair<std::string, std::filesystem::path>> dirs;
+        return dirs;
+    }
+}
+
+void UpdateFetcher::AddPluginDirectory(std::string const& dbModuleName, Path const& directory)
+{
+    PluginDirectories().emplace_back(dbModuleName, directory);
+}
+
 UpdateFetcher::DirectoryStorage UpdateFetcher::ReceiveIncludedDirectories() const
 {
     DirectoryStorage directories;
@@ -184,6 +198,18 @@ UpdateFetcher::DirectoryStorage UpdateFetcher::ReceiveIncludedDirectories() cons
 
                 LOG_TRACE("sql.updates", "Added applied modules file \"{}\" from remote.", dirPath.filename().generic_string());
             }
+        }
+
+        for (auto const& [dbModuleName, dirPath] : PluginDirectories())
+        {
+            if (dbModuleName != _dbModuleName)
+                continue;
+            if (!is_directory(dirPath))
+            {
+                LOG_WARN("sql.updates", "DBUpdater: plugin update directory \"{}\" does not exist, skipped!", dirPath.generic_string());
+                continue;
+            }
+            directories.push_back({ dirPath, AppliedFileEntry::StateConvert("MODULE") });
         }
     }
 

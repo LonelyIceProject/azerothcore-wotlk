@@ -55,6 +55,9 @@ public:
 
     static ConfigMgr* instance();
 
+    // Config of a plugin loaded at run time: configs/modules/<fileName>, or distPath when that file is missing.
+    void AddPluginConfig(std::string const& fileName, std::string const& distPath);
+
     bool Reload();
 
     /// Overrides configuration with environment variables and returns overridden keys

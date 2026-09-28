@@ -71,6 +71,10 @@ public:
 
     ~UpdateFetcher();
 
+    // Update folders of plugins loaded at run time, per database module name ("auth", "characters",
+    // "world"); fetched with state MODULE together with the compiled-in modules.
+    static void AddPluginDirectory(std::string const& dbModuleName, Path const& directory);
+
     UpdateResult Update(bool const redundancyChecks, bool const allowRehash,
                         bool const archivedRedundancy, int32 const cleanDeadReferencesMaxCount) const;
 

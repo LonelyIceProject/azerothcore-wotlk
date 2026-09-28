@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <locale>
 #include <mutex>
@@ -34,6 +35,7 @@ namespace
 {
     std::string _filename;
     std::vector<std::string> _additonalFiles;
+    std::vector<std::pair<std::string, std::string>> _pluginConfigs;
     std::vector<std::string> _args;
     std::unordered_map<std::string /*name*/, std::string /*value*/> _configOptions;
     std::unordered_map<std::string /*name*/, std::string /*value*/> _envVarCache;
@@ -748,9 +750,14 @@ bool ConfigMgr::LoadAppConfigs(bool isReload /*= false*/)
     return true;
 }
 
+void ConfigMgr::AddPluginConfig(std::string const& fileName, std::string const& distPath)
+{
+    _pluginConfigs.emplace_back(fileName, distPath);
+}
+
 bool ConfigMgr::LoadModulesConfigs(bool isReload /*= false*/, bool isNeedPrintInfo /*= true*/)
 {
-    if (_additonalFiles.empty())
+    if (_additonalFiles.empty() && _pluginConfigs.empty())
     {
         // Send successful load if no found files
         return true;
@@ -770,6 +777,17 @@ bool ConfigMgr::LoadModulesConfigs(bool isReload /*= false*/, bool isNeedPrintIn
         bool isExistConfig = LoadAdditionalFile(moduleConfigPath + fileName, false, isReload);
 
         if (isExistConfig)
+            _moduleConfigFiles.emplace_back(fileName);
+    }
+
+    // A plugin's .dist declares its options, configs/modules/<file> then overrides them.
+    for (auto const& [fileName, distPath] : _pluginConfigs)
+    {
+        std::error_code ec;
+        if (std::filesystem::exists(distPath, ec) && LoadAdditionalFile(distPath, false, isReload))
+            _moduleConfigFiles.emplace_back(distPath);
+        std::string const conf = moduleConfigPath + fileName;
+        if (std::filesystem::exists(conf, ec) && LoadAdditionalFile(conf, true, isReload))
             _moduleConfigFiles.emplace_back(fileName);
     }
 

@@ -215,6 +215,14 @@ Database.SQLite.Synchronous = "NORMAL"
 DataDir = "."
 
 #
+#    PluginsDir
+#        Description: Folder with plugins (one subfolder with a plugin.json each), loaded at start.
+#                     Relative paths start at the working directory.
+#        Default:     "plugins"
+
+PluginsDir = "plugins"
+
+#
 #    LogsDir
 #        Description: Logs directory setting.
 #        Important:   LogsDir needs to be quoted, as the string might contain space characters.
