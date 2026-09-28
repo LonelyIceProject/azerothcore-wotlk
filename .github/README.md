@@ -1,3 +1,35 @@
+# AzerothCore with SQLite, shared libraries and plugins
+
+This is a fork of [mod-playerbots/azerothcore-wotlk](https://github.com/mod-playerbots/azerothcore-wotlk)
+(branch `Playerbot`), which itself is a fork of [azerothcore/azerothcore-wotlk](https://github.com/azerothcore/azerothcore-wotlk)
+with the core hooks [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) needs. `authserver` and
+`worldserver` build and run as usual; the additions below are opt-in.
+
+## Changes in this fork
+
+- **Backend-neutral database layer with SQLite.** MySQL sits behind `IDbConnectionBackend`; a SQLite backend is
+  added next to it. SQL written for MySQL (base dumps, updates, module SQL) is translated at apply time by a
+  dialect layer (`src/server/database/Dialect`: lexer, statement translator, schema model and DDL emitter);
+  statements that cannot be translated have overrides in `data/sql/overrides/sqlite`. `sqlconv` migrates a
+  MySQL dump and lints SQL for the translator. Connection strings: `sqlite:db/world.sqlite` (see
+  `worldserver.conf.dist`). MySQL keeps working (`WITH_MYSQL`); PostgreSQL can be added as another backend.
+- **Shared libraries on Windows.** `-DWITH_DYNAMIC_LINKING=ON` builds `common`, `shared`, `database` and `game`
+  as DLLs that export their API, so applications and plugins can link against them.
+- **Plugins.** Modules built as shared libraries are loaded at start from `PluginsDir`, with their config, SQL
+  and dependencies (`src/server/game/Plugins`, [doc/Plugins.md](../doc/Plugins.md)). `-DWITH_PLAYERBOTS_HOOKS=ON`
+  builds the core hooks mod-playerbots needs when the module is loaded as a plugin instead of being built from
+  `modules/`.
+- **Usable as a subproject.** The build uses `AC_SOURCE_DIR` / `AC_BINARY_DIR` instead of the top-level
+  directories, so another project can `add_subdirectory()` the core and build its own applications against it.
+
+Changes that make sense for AzerothCore itself are written to be proposed upstream.
+
+## License
+
+GNU General Public License v2.0 or later, like AzerothCore; see [LICENSE](../LICENSE).
+
+---
+
 # ![logo](https://raw.githubusercontent.com/azerothcore/azerothcore.github.io/master/images/logo-github.png) AzerothCore
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
