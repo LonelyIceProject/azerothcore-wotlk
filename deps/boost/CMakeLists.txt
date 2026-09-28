@@ -57,6 +57,11 @@ target_include_directories(boost
   INTERFACE
     ${Boost_INCLUDE_DIRS})
 
+# Boost headers request their libraries by name (auto-linking on MSVC), also in targets outside the core.
+target_link_directories(boost
+  INTERFACE
+    ${Boost_LIBRARY_DIRS})
+
 target_compile_definitions(boost
   INTERFACE
     -DBOOST_DATE_TIME_NO_LIB
