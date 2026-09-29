@@ -70,18 +70,21 @@ function(AddPlugin target)
     LIBRARY_OUTPUT_DIRECTORY "${dir}/server/${AC_PLUGIN_PLATFORM}"
     FOLDER "plugins")
 
-  add_custom_command(TARGET ${target} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" "${dir}/plugin.json")
+  # The plugin's other files are copied on every build, so changes to them alone reach the output as well;
+  # the folders are replaced, so files removed from the sources disappear from the output too.
+  set(copy COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" "${dir}/plugin.json")
   foreach(sub data sql conf lua client)
+    list(APPEND copy COMMAND ${CMAKE_COMMAND} -E rm -rf "${dir}/${sub}")
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${sub}")
-      add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/${sub}" "${dir}/${sub}")
+      list(APPEND copy COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/${sub}" "${dir}/${sub}")
     endif()
   endforeach()
   foreach(extra settings.json icon.png LICENSE README.md)
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${extra}")
-      add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${extra}" "${dir}/${extra}")
+      list(APPEND copy COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${extra}" "${dir}/${extra}")
     endif()
   endforeach()
+  add_custom_target(${target}-files ALL ${copy} VERBATIM)
+  set_target_properties(${target}-files PROPERTIES FOLDER "plugins")
+  add_dependencies(${target} ${target}-files)
 endfunction()
