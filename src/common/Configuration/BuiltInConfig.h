@@ -37,10 +37,6 @@ namespace BuiltInConfig
     /// returns the built-in one otherwise
     AC_COMMON_API std::string GetSourceDirectory();
 
-    /// Returns the path to the mysql executable (`mysql`) when any is specified
-    /// in the config, returns the built-in one otherwise
-    AC_COMMON_API std::string GetMySQLExecutable();
-
 } // namespace BuiltInConfig
 
 #endif // BUILT_IN_CONFIG_H

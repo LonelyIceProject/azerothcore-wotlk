@@ -58,11 +58,6 @@ char const* GitRevision::GetSourceDirectory()
     return _SOURCE_DIRECTORY;
 }
 
-char const* GitRevision::GetMySQLExecutable()
-{
-    return _MYSQL_EXECUTABLE;
-}
-
 #if AC_PLATFORM == AC_PLATFORM_WINDOWS
 #  ifdef _WIN64
 #    define AZEROTH_PLATFORM_STR "Win64"

@@ -33,8 +33,14 @@ target_include_directories(shared
 target_link_libraries(shared
   PRIVATE
     acore-core-interface
+    fkYAML
   PUBLIC
     database)
+
+# The plugin loader and the plugins built against this core (PluginApi.h) agree on the binary interface.
+target_compile_definitions(shared
+  PUBLIC
+    AC_PLUGIN_ABI="${AC_PLUGIN_ABI}")
 
 set_target_properties(shared
   PROPERTIES

@@ -32,6 +32,8 @@ struct PluginInfo
     std::string name;
     std::filesystem::path dir;
     std::filesystem::path library;                       // empty: no server code
+    std::string abi;                                     // core.abi the library was built for
+    std::vector<std::string> apps;                       // programs that load the plugin (server.apps)
     std::string configFile;                              // file name looked up in configs/modules
     std::filesystem::path configDist;                    // fallback inside the plugin folder
     std::vector<std::pair<std::string, std::filesystem::path>> databases;   // core database -> update folder
@@ -40,18 +42,20 @@ struct PluginInfo
     bool loaded = false;
     std::string error;
     void* handle = nullptr;
+    void (*onLoad)() = nullptr;
     void (*addScripts)() = nullptr;
 };
 
-class AC_GAME_API PluginMgr
+class AC_SHARED_API PluginMgr
 {
 public:
     static PluginMgr* instance();
 
-    // Reads the manifests in dir, orders plugins by dependencies, loads their libraries and registers
-    // their configs and SQL folders. Call after the main config and the log are loaded, before
-    // ConfigMgr::LoadModulesConfigs and the databases.
-    void Load(std::filesystem::path const& dir);
+    // Reads the manifests in dir, orders plugins by dependencies, loads the libraries of the plugins made for one of
+    // apps ("worldserver", "authserver", "dbimport"; server.apps in the manifest, worldserver when missing), runs
+    // their load entry points and registers their configs and SQL folders. Call after the main config and the log
+    // are loaded, before ConfigMgr::LoadModulesConfigs and the databases.
+    void Load(std::filesystem::path const& dir, std::vector<std::string> const& apps = { "worldserver" });
 
     // Registers the scripts of every loaded plugin, in load order. Call from the modules script loader.
     void AddScripts();

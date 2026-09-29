@@ -18,7 +18,12 @@
 #ifndef _PLUGIN_API_H
 #define _PLUGIN_API_H
 
-// Included by plugin libraries, which end with AC_PLUGIN(AddMyScripts). See doc/Plugins.md.
+// Included by plugin libraries, which end with one entry macro (doc/Plugins.md):
+//   AC_PLUGIN(AddMyScripts)                 scripts, registered by worldserver with the modules' scripts
+//   AC_PLUGIN_ON_LOAD(OnLoad)               code run right after the library loads, in every program that loads it
+//   AC_PLUGIN_ENTRY(OnLoad, AddMyScripts)   both
+
+#include "Define.h"
 
 // Identifies the binary interface of this core build; set with -DAC_PLUGIN_ABI=<name> when configuring.
 #ifndef AC_PLUGIN_ABI
@@ -45,9 +50,33 @@
 #  define AC_PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
-#define AC_PLUGIN(addScripts) \
+using PluginFunction = void (*)();
+
+// A plugin built into the programs (AddPlugin in a core built without shared libraries) instead of loaded from its
+// library; PluginMgr uses these entry points for the plugin folder of the same id.
+AC_SHARED_API void RegisterStaticPlugin(char const* id, PluginFunction onLoad, PluginFunction addScripts);
+
+struct StaticPluginRegistrar
+{
+    StaticPluginRegistrar(char const* id, PluginFunction onLoad, PluginFunction addScripts)
+    {
+        RegisterStaticPlugin(id, onLoad, addScripts);
+    }
+};
+
+#ifdef AC_PLUGIN_STATIC
+// AddPlugin defines AC_PLUGIN_STATIC and AC_PLUGIN_ID (the manifest's id) for plugins built into the programs.
+#  define AC_PLUGIN_ENTRY(onLoad, addScripts) \
+    namespace { StaticPluginRegistrar const acorePluginRegistrar(AC_PLUGIN_ID, onLoad, addScripts); }
+#else
+#  define AC_PLUGIN_ENTRY(onLoad, addScripts) \
     AC_PLUGIN_EXPORT char const* AcorePlugin_Abi() { return AC_PLUGIN_ABI; } \
     AC_PLUGIN_EXPORT char const* AcorePlugin_Platform() { return AC_PLUGIN_PLATFORM; } \
-    AC_PLUGIN_EXPORT void AcorePlugin_AddScripts() { addScripts(); }
+    AC_PLUGIN_EXPORT void AcorePlugin_OnLoad() { if (PluginFunction const fn = onLoad) fn(); } \
+    AC_PLUGIN_EXPORT void AcorePlugin_AddScripts() { if (PluginFunction const fn = addScripts) fn(); }
+#endif
+
+#define AC_PLUGIN(addScripts) AC_PLUGIN_ENTRY(nullptr, addScripts)
+#define AC_PLUGIN_ON_LOAD(onLoad) AC_PLUGIN_ENTRY(onLoad, nullptr)
 
 #endif

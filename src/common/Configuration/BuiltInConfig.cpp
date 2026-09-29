@@ -44,9 +44,3 @@ std::string BuiltInConfig::GetSourceDirectory()
     return GetStringWithDefaultValueFromFunction(
         "SourceDirectory", GitRevision::GetSourceDirectory);
 }
-
-std::string BuiltInConfig::GetMySQLExecutable()
-{
-    return GetStringWithDefaultValueFromFunction(
-        "MySQLExecutable", GitRevision::GetMySQLExecutable);
-}

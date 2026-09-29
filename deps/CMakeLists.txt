@@ -10,12 +10,6 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
-if(CMAKE_SYSTEM_NAME MATCHES "Windows")
-  if(USE_MYSQL_SOURCES)
-      add_subdirectory(mysqllite)
-  endif()
-endif()
-
 add_subdirectory(SFMT)
 add_subdirectory(argon2)
 add_subdirectory(boost)
@@ -26,10 +20,6 @@ add_subdirectory(stdfs)
 add_subdirectory(threads)
 add_subdirectory(utf8cpp)
 add_subdirectory(fkYAML)
-
-if (WITH_MYSQL AND ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR BUILD_TOOLS_DB_IMPORT))
-  add_subdirectory(mysql)
-endif()
 
 if ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR (TOOLS_BUILD AND (NOT TOOLS_BUILD STREQUAL "none")))
   add_subdirectory(sqlite)

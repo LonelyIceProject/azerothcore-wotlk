@@ -112,13 +112,10 @@ include(AcorePlugin)
 
 CU_RUN_HOOK("AFTER_LOAD_CMAKE_MODULES")
 
-option(WITH_MYSQL  "Build the MySQL database backend"  1)
+# Other database backends (MySQL, ...) come from plugins, see doc/Plugins.md
 option(WITH_SQLITE "Build the SQLite database backend" 1)
 
 find_package(PCHSupport)
-if(WITH_MYSQL)
-  find_package(MySQL REQUIRED)
-endif()
 
 if(UNIX AND WITH_PERFTOOLS)
     find_package(Gperftools)
@@ -164,8 +161,9 @@ if (BUILD_APPLICATION_WORLDSERVER)
 endif()
 
 # Plugins built together with the core: each folder holds a plugin.json and a CMakeLists.txt calling AddPlugin().
+# Without shared libraries they are built into the programs instead (doc/Plugins.md).
 set(AC_PLUGIN_SOURCE_DIRS "" CACHE STRING "Plugin source folders built with the core (;-separated)")
-if (BUILD_APPLICATION_WORLDSERVER AND BUILD_SHARED_LIBS)
+if (BUILD_APPLICATION_WORLDSERVER OR BUILD_APPLICATION_AUTHSERVER)
   foreach(plugin_dir ${AC_PLUGIN_SOURCE_DIRS})
     get_filename_component(plugin_name "${plugin_dir}" NAME)
     add_subdirectory("${plugin_dir}" "${AC_BINARY_DIR}/plugins/${plugin_name}")

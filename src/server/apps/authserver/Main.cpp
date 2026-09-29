@@ -36,6 +36,7 @@
 #include "IoContext.h"
 #include "Log.h"
 #include "OpenSSLCrypto.h"
+#include "PluginMgr.h"
 #include "ProcessPriority.h"
 #include "RealmList.h"
 #include "SecretMgr.h"
@@ -118,6 +119,9 @@ int main(int argc, char** argv)
             return 1;
         }
     }
+
+    // Plugins made for authserver, e.g. a database backend, load before the databases
+    sPluginMgr->Load(sConfigMgr->GetOption<std::string>("PluginsDir", "plugins"), { "authserver" });
 
     // Initialize the database connection
     if (!StartDB())

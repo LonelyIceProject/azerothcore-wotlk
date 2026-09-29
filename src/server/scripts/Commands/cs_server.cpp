@@ -136,7 +136,6 @@ public:
         handler->PSendSysMessage("Using CMake version: {}", GitRevision::GetCMakeVersion());
 
         handler->PSendSysMessage("Using database libraries: {}", DatabaseLibrary::Version());
-        handler->PSendSysMessage("Found MySQL Executable: {}", GitRevision::GetMySQLExecutable());
 
         handler->PSendSysMessage("Compiled on: {}", GitRevision::GetHostOSVersion());
 

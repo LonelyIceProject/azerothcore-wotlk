@@ -16,10 +16,6 @@ set(DATABASE_EXCLUDED_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/PrecompiledHeaders
   ${CMAKE_CURRENT_SOURCE_DIR}/Dialect)
 
-if(NOT WITH_MYSQL)
-  list(APPEND DATABASE_EXCLUDED_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Database/Backends/MySQL)
-endif()
-
 if(NOT WITH_SQLITE)
   list(APPEND DATABASE_EXCLUDED_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Database/Backends/SQLite)
 endif()
@@ -68,15 +64,6 @@ target_link_libraries(database
   PUBLIC
     common
     dbdialect)
-
-if(WITH_MYSQL)
-  target_link_libraries(database
-    PRIVATE
-      mysql)
-  target_compile_definitions(database
-    PRIVATE
-      ACORE_WITH_MYSQL)
-endif()
 
 if(WITH_SQLITE)
   target_compile_definitions(database

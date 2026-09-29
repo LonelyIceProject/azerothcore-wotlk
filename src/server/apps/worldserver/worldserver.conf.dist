@@ -123,7 +123,7 @@ BindIP = "0.0.0.0"
 #                     "sqlite:db/world.sqlite"      - (WorldDatabaseInfo)
 #                     "sqlite:db/characters.sqlite" - (CharacterDatabaseInfo)
 #                     A string without a "sqlite:" prefix (or with a "mysql:" prefix) is a MySQL
-#                     connection string.
+#                     connection string; MySQL needs a plugin providing that backend in PluginsDir.
 #        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
 #                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
 #                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
@@ -278,18 +278,6 @@ BuildDirectory = ""
 #        Default:     ""
 
 SourceDirectory = ""
-
-#
-#    MySQLExecutable
-#        Description: The path to your MySQL CLI binary.
-#                     If the path is left empty, built-in path from cmake is used.
-#                     Not used by SQLite databases.
-#        Example:     "C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe"
-#                     "mysql.exe"
-#                     "/usr/bin/mysql"
-#        Default:     ""
-
-MySQLExecutable = ""
 
 #
 #    PidFile

@@ -24,6 +24,7 @@
 #include "IoContext.h"
 #include "Log.h"
 #include "OpenSSLCrypto.h"
+#include "PluginMgr.h"
 #include "Util.h"
 #include <boost/program_options.hpp>
 #include <boost/version.hpp>
@@ -87,6 +88,9 @@ int main(int argc, char** argv)
     OpenSSLCrypto::threadsSetup();
 
     std::shared_ptr<void> opensslHandle(nullptr, [](void*) { OpenSSLCrypto::threadsCleanup(); });
+
+    // Plugins made for dbimport, e.g. a database backend and their SQL folders, load before the databases
+    sPluginMgr->Load(sConfigMgr->GetOption<std::string>("PluginsDir", "plugins"), { "dbimport" });
 
     // Initialize the database connection
     if (!StartDB())

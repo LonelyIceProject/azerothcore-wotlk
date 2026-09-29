@@ -174,17 +174,14 @@ StrictVersionCheck = 0
 SourceDirectory = ""
 
 #
-#    MySQLExecutable
-#        Description: The path to your MySQL CLI binary.
-#                     If the path is left empty, built-in path from cmake is used.
-#                     Not used by SQLite databases.
-#        Example:     "C:/Program Files/MySQL/MySQL Server 8.4/bin/mysql.exe"
-#                     "mysql.exe"
-#                     "/usr/bin/mysql"
-#        Default:     ""
-#
+#    PluginsDir
+#        Description: Folder with plugins (one subfolder with a plugin.json each), loaded at start.
+#                     Only plugins that list this program in "server.apps" are loaded here, e.g.
+#                     the one providing the MySQL database backend.
+#                     Relative paths start at the working directory.
+#        Default:     "plugins"
 
-MySQLExecutable = ""
+PluginsDir = "plugins"
 
 #
 #    TempDir
@@ -232,7 +229,7 @@ AllowLoggingIPAddressesInDatabase = 1
 #                                               from the working directory of the server. Use the
 #                                               same file as the world server)
 #                     A string without a "sqlite:" prefix (or with a "mysql:" prefix) is a MySQL
-#                     connection string.
+#                     connection string; MySQL needs a plugin providing that backend in PluginsDir.
 #        Default:     "127.0.0.1;3306;acore;acore;acore_auth"
 
 LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"

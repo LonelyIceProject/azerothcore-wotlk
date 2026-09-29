@@ -98,6 +98,33 @@ namespace
         return dlsym(handle, name);
 #endif
     }
+
+    struct StaticPlugin
+    {
+        std::string id;
+        PluginFunction onLoad;
+        PluginFunction addScripts;
+    };
+
+    // Filled while the program's static objects are constructed, before main.
+    std::vector<StaticPlugin>& StaticPlugins()
+    {
+        static std::vector<StaticPlugin> plugins;
+        return plugins;
+    }
+
+    StaticPlugin const* FindStaticPlugin(std::string const& id)
+    {
+        for (StaticPlugin const& plugin : StaticPlugins())
+            if (plugin.id == id)
+                return &plugin;
+        return nullptr;
+    }
+}
+
+void RegisterStaticPlugin(char const* id, PluginFunction onLoad, PluginFunction addScripts)
+{
+    StaticPlugins().push_back({ id, onLoad, addScripts });
 }
 
 PluginMgr* PluginMgr::instance()
@@ -182,19 +209,20 @@ bool PluginMgr::ReadManifest(fs::path const& dir, PluginInfo& info)
             for (auto const& c : root["conflicts"].as_seq())
                 info.conflicts.push_back(c.get_value<std::string>());
 
+        if (root.contains("server") && root["server"].is_mapping() && root["server"].contains("apps") && root["server"]["apps"].is_sequence())
+            for (auto const& app : root["server"]["apps"].as_seq())
+                if (app.is_string())
+                    info.apps.push_back(app.get_value<std::string>());
+        if (info.apps.empty())
+            info.apps.push_back("worldserver");
+
         if (root.contains("server") && root["server"].is_mapping())
         {
             fkyaml::node const& server = root["server"];
             std::string library = Str(server, "library");
             if (!library.empty())
                 info.library = dir / "server" / AC_PLUGIN_PLATFORM / LibraryFile(library);
-
-            std::string abi = root.contains("core") && root["core"].is_mapping() ? Str(root["core"], "abi") : std::string();
-            if (!info.library.empty() && abi != AC_PLUGIN_ABI)
-            {
-                info.error = "built for core " + (abi.empty() ? std::string("?") : abi) + ", this server is " AC_PLUGIN_ABI;
-                return true;
-            }
+            info.abi = root.contains("core") && root["core"].is_mapping() ? Str(root["core"], "abi") : std::string();
         }
 
         if (root.contains("databases") && root["databases"].is_mapping())
@@ -227,8 +255,27 @@ bool PluginMgr::ReadManifest(fs::path const& dir, PluginInfo& info)
 
 bool PluginMgr::OpenLibrary(PluginInfo& info)
 {
+    if (StaticPlugin const* builtIn = FindStaticPlugin(info.id))
+    {
+        info.onLoad = builtIn->onLoad;
+        info.addScripts = builtIn->addScripts;
+        return true;
+    }
+
     if (info.library.empty())
         return true;
+
+    if (info.abi != AC_PLUGIN_ABI)
+    {
+        info.error = "built for core " + (info.abi.empty() ? std::string("?") : info.abi) + ", this server is " AC_PLUGIN_ABI;
+        return false;
+    }
+
+#ifndef ACORE_API_USE_DYNAMIC_LINKING
+    info.error = "this server is built without shared libraries and cannot load plugin libraries; build the plugin into it";
+    return false;
+#else
+
     std::error_code ec;
     if (!fs::exists(info.library, ec))
     {
@@ -258,8 +305,9 @@ bool PluginMgr::OpenLibrary(PluginInfo& info)
 
     auto abi = reinterpret_cast<char const* (*)()>(Symbol(handle, "AcorePlugin_Abi"));
     auto platform = reinterpret_cast<char const* (*)()>(Symbol(handle, "AcorePlugin_Platform"));
-    info.addScripts = reinterpret_cast<void (*)()>(Symbol(handle, "AcorePlugin_AddScripts"));
-    if (!abi || !platform || !info.addScripts)
+    auto onLoad = reinterpret_cast<PluginFunction>(Symbol(handle, "AcorePlugin_OnLoad"));
+    auto addScripts = reinterpret_cast<PluginFunction>(Symbol(handle, "AcorePlugin_AddScripts"));
+    if (!abi || !platform || (!onLoad && !addScripts))
     {
         info.error = "not a plugin library (missing exports)";
         return false;
@@ -267,29 +315,35 @@ bool PluginMgr::OpenLibrary(PluginInfo& info)
     if (std::string(abi()) != AC_PLUGIN_ABI || std::string(platform()) != AC_PLUGIN_PLATFORM)
     {
         info.error = std::string("library built for ") + abi() + " " + platform() + ", this server is " AC_PLUGIN_ABI " " AC_PLUGIN_PLATFORM;
-        info.addScripts = nullptr;
         return false;
     }
+    info.onLoad = onLoad;
+    info.addScripts = addScripts;
     return true;
+#endif
 }
 
-void PluginMgr::Load(fs::path const& dir)
+void PluginMgr::Load(fs::path const& dir, std::vector<std::string> const& apps)
 {
     std::error_code ec;
-    if (!fs::is_directory(dir, ec))
-        return;
-
     std::map<std::string, PluginInfo> found;
+    std::set<std::string> seen;
     std::vector<fs::path> folders;
-    for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
-        if (it->is_directory(ec))
-            folders.push_back(it->path());
+    if (fs::is_directory(dir, ec))
+        for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
+            if (it->is_directory(ec))
+                folders.push_back(it->path());
     std::sort(folders.begin(), folders.end());
 
     for (fs::path const& folder : folders)
     {
         PluginInfo info;
         if (!ReadManifest(folder, info))
+            continue;
+        seen.insert(info.id);
+        // Plugins made for other programs are left out without a word (a manifest that failed early has no apps).
+        if (!info.apps.empty() && std::none_of(info.apps.begin(), info.apps.end(),
+            [&](std::string const& app) { return std::find(apps.begin(), apps.end(), app) != apps.end(); }))
             continue;
         if (!info.error.empty())
         {
@@ -302,6 +356,19 @@ void PluginMgr::Load(fs::path const& dir)
                 found[info.id].dir.filename().generic_string());
             continue;
         }
+        found.emplace(info.id, std::move(info));
+    }
+
+    // Plugins built into the program still load without their folder, only their configs and SQL are missing then.
+    for (StaticPlugin const& builtIn : StaticPlugins())
+    {
+        if (seen.count(builtIn.id))
+            continue;
+        LOG_WARN("server.loading", "Plugin {} is built in, but {} has no folder for it: its configs and SQL are not used", builtIn.id, dir.generic_string());
+        PluginInfo info;
+        info.id = builtIn.id;
+        info.version = "built-in";
+        info.name = builtIn.id;
         found.emplace(info.id, std::move(info));
     }
 
@@ -371,6 +438,10 @@ void PluginMgr::Load(fs::path const& dir)
         for (auto const& [db, path] : info.databases)
             UpdateFetcher::AddPluginDirectory(db, path);
         LOG_INFO("server.loading", "Plugin {} {} ({})", info.id, info.version, info.name);
+
+        // Before the plugin's config is read and before the databases open, e.g. to register a database backend.
+        if (info.onLoad)
+            info.onLoad();
     }
 }
 

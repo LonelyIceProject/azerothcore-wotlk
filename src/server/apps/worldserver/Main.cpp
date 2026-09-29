@@ -268,7 +268,7 @@ int main(int argc, char** argv)
     SetProcessPriority("server.worldserver", sConfigMgr->GetOption<int32>(CONFIG_PROCESSOR_AFFINITY, 0), sConfigMgr->GetOption<bool>(CONFIG_HIGH_PRIORITY, true));
 
     // Plugins register their configs and SQL folders, so they load before module configs and databases
-    sPluginMgr->Load(sConfigMgr->GetOption<std::string>("PluginsDir", "plugins"));
+    sPluginMgr->Load(sConfigMgr->GetOption<std::string>("PluginsDir", "plugins"), { "worldserver" });
 
     // Loading modules configs before scripts
     sConfigMgr->LoadModulesConfigs();

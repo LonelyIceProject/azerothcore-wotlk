@@ -3,20 +3,24 @@
 This is a fork of [mod-playerbots/azerothcore-wotlk](https://github.com/mod-playerbots/azerothcore-wotlk)
 (branch `Playerbot`), which itself is a fork of [azerothcore/azerothcore-wotlk](https://github.com/azerothcore/azerothcore-wotlk)
 with the core hooks [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) needs. `authserver` and
-`worldserver` build and run as usual; the additions below are opt-in.
+`worldserver` build and run as usual, on SQLite databases; MySQL comes from a plugin (see below).
 
 ## Changes in this fork
 
-- **Backend-neutral database layer with SQLite.** MySQL sits behind `IDbConnectionBackend`; a SQLite backend is
-  added next to it. SQL written for MySQL (base dumps, updates, module SQL) is translated at apply time by a
-  dialect layer (`src/server/database/Dialect`: lexer, statement translator, schema model and DDL emitter);
+- **Backend-neutral database layer with SQLite.** Databases are reached through `IDbConnectionBackend`; the core
+  builds in a SQLite backend. SQL written for MySQL (base dumps, updates, module SQL) is translated at apply time
+  by a dialect layer (`src/server/database/Dialect`: lexer, statement translator, schema model and DDL emitter);
   statements that cannot be translated have overrides in `data/sql/overrides/sqlite`. `sqlconv` migrates a
   MySQL dump and lints SQL for the translator. Connection strings: `sqlite:db/world.sqlite` (see
-  `worldserver.conf.dist`). MySQL keeps working (`WITH_MYSQL`); PostgreSQL can be added as another backend.
+  `worldserver.conf.dist`). Other backends (MySQL, PostgreSQL) are plugins that register themselves with
+  `RegisterBackendDriver` when they load, so the core has no MySQL code and no MySQL build dependency; MySQL
+  connection strings work once such a plugin is in `PluginsDir`.
 - **Shared libraries on Windows.** `-DWITH_DYNAMIC_LINKING=ON` builds `common`, `shared`, `database` and `game`
   as DLLs that export their API, so applications and plugins can link against them.
 - **Plugins.** Modules built as shared libraries are loaded at start from `PluginsDir`, with their config, SQL
-  and dependencies (`src/server/game/Plugins`, [doc/Plugins.md](../doc/Plugins.md)). `-DWITH_PLAYERBOTS_HOOKS=ON`
+  and dependencies, by worldserver and, for plugins made for them, by authserver and dbimport
+  (`src/server/shared/Plugins`, [doc/Plugins.md](../doc/Plugins.md)). In a core built without shared libraries
+  the same plugin sources are built into those programs. `-DWITH_PLAYERBOTS_HOOKS=ON`
   builds the core hooks mod-playerbots needs when the module is loaded as a plugin instead of being built from
   `modules/`.
 - **Usable as a subproject.** The build uses `AC_SOURCE_DIR` / `AC_BINARY_DIR` instead of the top-level

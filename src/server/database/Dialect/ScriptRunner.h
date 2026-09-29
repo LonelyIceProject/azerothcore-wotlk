@@ -74,9 +74,9 @@ public:
 
     [[nodiscard]] virtual ISchemaLookup const* Schema() const { return nullptr; }
 
-    // The target runs MySQL statements itself: ScriptRunner hands every statement of a script to Exec as written,
-    // without translating it or going through the schema model.
-    [[nodiscard]] virtual bool RunsMySqlAsIs() const { return false; }
+    // The target understands the dialect the sql files are written in (MySQL): ScriptRunner hands every statement
+    // of a script to Exec as written, without translating it or going through the schema model.
+    [[nodiscard]] virtual bool RunsScriptsAsWritten() const { return false; }
 };
 
 struct ScriptRunnerOptions

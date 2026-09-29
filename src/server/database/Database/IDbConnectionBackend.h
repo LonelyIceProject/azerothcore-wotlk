@@ -64,14 +64,14 @@ public:
     virtual bool TableExists(std::string_view table) = 0;
     virtual std::vector<std::string> ListColumns(std::string_view table) = 0;
 
-    // Target for ScriptRunner on this connection; nullptr when the backend applies files externally (MySQL CLI).
-    virtual std::unique_ptr<IScriptTarget> CreateScriptTarget() { return nullptr; }
+    // Target the updater applies sql files through (ScriptRunner) on this connection.
+    virtual std::unique_ptr<IScriptTarget> CreateScriptTarget() = 0;
 
     [[nodiscard]] virtual std::string ServerInfo() const = 0;
     [[nodiscard]] virtual DatabaseBackend Backend() const = 0;
 };
 
-// Implementation of a backend. The built-in ones register themselves; a module can register one
+// Implementation of a backend. The built-in ones register themselves; a plugin can register one
 // (or replace a built-in one) before the databases are opened. Plain function pointers only, so a
 // driver living in a shared library leaves nothing behind once it is unregistered.
 struct DbBackendDriver
@@ -90,7 +90,6 @@ AC_DATABASE_API bool IsBackendAvailable(DatabaseBackend backend);
 AC_DATABASE_API std::unique_ptr<IDbConnectionBackend> CreateBackend(DatabaseConnectionInfo const& info);
 AC_DATABASE_API DbBackendCaps GetBackendCaps(DatabaseBackend backend);
 
-std::unique_ptr<IDbConnectionBackend> CreateMySQLBackend(DatabaseConnectionInfo const& info);
 std::unique_ptr<IDbConnectionBackend> CreateSQLiteBackend(DatabaseConnectionInfo const& info);
 
 #endif

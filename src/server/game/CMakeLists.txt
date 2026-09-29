@@ -41,10 +41,6 @@ target_link_libraries(game-interface
   INTERFACE
     shared)
 
-target_compile_definitions(game-interface
-  INTERFACE
-    AC_PLUGIN_ABI="${AC_PLUGIN_ABI}")
-
 add_library(game
   ${PRIVATE_SOURCES})
 

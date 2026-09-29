@@ -25,53 +25,12 @@
 #include "Log.h"
 #include "ScriptRunner.h"
 #include "SqlDialect.h"
-#include "StartProcess.h"
 #include "UpdateFetcher.h"
 #include "QueryResult.h"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <vector>
-
-std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
-{
-    if (!corrected_path().empty())
-        return corrected_path();
-    else
-        return BuiltInConfig::GetMySQLExecutable();
-}
-
-bool DBUpdaterUtil::CheckPrerequisites(DatabaseBackend backend)
-{
-    return !GetBackendCaps(backend).externalScripts || CheckExecutable();
-}
-
-bool DBUpdaterUtil::CheckExecutable()
-{
-    std::filesystem::path exe(GetCorrectedMySQLExecutable());
-    if (!is_regular_file(exe))
-    {
-        exe = Acore::SearchExecutableInPath("mysql");
-        if (!exe.empty() && is_regular_file(exe))
-        {
-            // Correct the path to the cli
-            corrected_path() = absolute(exe).generic_string();
-            return true;
-        }
-
-        LOG_FATAL("sql.updates", "Didn't find any executable MySQL binary at \'{}\' or in path, correct the path in the *.conf (\"MySQLExecutable\").",
-            absolute(exe).generic_string());
-
-        return false;
-    }
-    return true;
-}
-
-std::string& DBUpdaterUtil::corrected_path()
-{
-    static std::string path;
-    return path;
-}
 
 uint32& DBUpdaterUtil::failed_updates()
 {
@@ -221,9 +180,6 @@ using Path = std::filesystem::path;
 QueryResult Retrieve(DatabaseUpdatePool& pool, std::string const& query);
 void Apply(DatabaseUpdatePool& pool, std::string const& query);
 bool ApplyFile(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record = nullptr);
-void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string const& user,
-               std::string const& password, std::string const& port_or_socket, std::string const& database,
-               std::string const& ssl, Path const& path);
 
 DatabaseBackend GetBackend(DatabaseUpdatePool& pool)
 {
@@ -500,60 +456,22 @@ bool CreateDatabase(DatabaseUpdatePool& pool)
 
     LOG_INFO("sql.updates", "Creating database \"{}\"...", pool.GetConnectionInfo()->database);
 
-    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
+    std::unique_ptr<IDbConnectionBackend> backend = CreateBackend(*pool.GetConnectionInfo());
+    DbError const error = backend ? backend->Open(true) : DbError{ DbErrorClass::Other, 0, "backend is not available" };
+    if (error.IsError())
     {
-        std::unique_ptr<IDbConnectionBackend> backend = CreateBackend(*pool.GetConnectionInfo());
-        DbError const error = backend ? backend->Open(true) : DbError{ DbErrorClass::Other, 0, "backend is not available" };
-        if (error.IsError())
-        {
-            LOG_FATAL("sql.updates", "Failed to create database {}! {}", pool.GetConnectionInfo()->database, error.message);
-            return false;
-        }
-
-        backend->Close();
-        LOG_INFO("sql.updates", "Done.");
-        LOG_INFO("sql.updates", " ");
-        return true;
-    }
-
-    // Path of temp file
-    static Path const temp("create_table.sql");
-
-    // Create temporary query to use external MySQL CLi
-    std::ofstream file(temp.generic_string());
-    if (!file.is_open())
-    {
-        LOG_FATAL("sql.updates", "Failed to create temporary query file \"{}\"!", temp.generic_string());
+        LOG_FATAL("sql.updates", "Failed to create database {}! {}", pool.GetConnectionInfo()->database, error.message);
         return false;
     }
 
-    file << "CREATE DATABASE `" << pool.GetConnectionInfo()->database << "` DEFAULT CHARACTER SET UTF8MB4 COLLATE utf8mb4_general_ci;\n\n";
-    file.close();
-
-    try
-    {
-        ApplyFile(pool, pool.GetConnectionInfo()->host, pool.GetConnectionInfo()->user,
-                  pool.GetConnectionInfo()->password, pool.GetConnectionInfo()->port_or_socket, "",
-                  pool.GetConnectionInfo()->ssl, temp);
-    }
-    catch (UpdateException&)
-    {
-        LOG_FATAL("sql.updates", "Failed to create database {}! Does the user (named in *.conf) have `CREATE`, `ALTER`, `DROP`, `INSERT` and `DELETE` privileges on the MySQL server?", pool.GetConnectionInfo()->database);
-        std::filesystem::remove(temp);
-        return false;
-    }
-
+    backend->Close();
     LOG_INFO("sql.updates", "Done.");
     LOG_INFO("sql.updates", " ");
-    std::filesystem::remove(temp);
     return true;
 }
 
 bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::string_view modulesList)
 {
-    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
-        return false;
-
     LOG_INFO("sql.updates", "Updating {} database...", info.displayName);
 
     Path const sourceDirectory(info.sourceDirectory);
@@ -579,7 +497,7 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
             }
             catch (UpdateException&)
             {
-                LOG_FATAL("sql.updates", "Failed apply file to database {}! Does the user (named in *.conf) have `INSERT` and `DELETE` privileges on the MySQL server?", pool.GetConnectionInfo()->database);
+                LOG_FATAL("sql.updates", "Failed apply file to database {}! Does the user (named in *.conf) have `INSERT` and `DELETE` privileges on the database server?", pool.GetConnectionInfo()->database);
                 return false;
             }
 
@@ -625,11 +543,6 @@ bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, std::st
 bool UpdateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info,
                     std::vector<std::string> const* setDirectories)
 {
-    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
-    {
-        return false;
-    }
-
     Path const sourceDirectory(info.sourceDirectory);
     if (!is_directory(sourceDirectory))
     {
@@ -687,9 +600,6 @@ bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
     if (HasAnyTable(pool))
         return true;
 
-    if (!DBUpdaterUtil::CheckPrerequisites(GetBackend(pool)))
-        return false;
-
     LOG_INFO("sql.updates", "Database {} is empty, auto populating it...", info.displayName);
 
     std::string const DirPathStr = info.baseFilesDirectory;
@@ -732,32 +642,13 @@ bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
 
     std::sort(sqlFiles.begin(), sqlFiles.end());
 
-    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
+    try
     {
-        try
-        {
-            PopulateThroughConnection(pool, info, sqlFiles);
-        }
-        catch (UpdateException&)
-        {
-            return false;
-        }
+        PopulateThroughConnection(pool, info, sqlFiles);
     }
-    else
+    catch (UpdateException&)
     {
-        for (auto const& file : sqlFiles)
-        {
-            LOG_INFO("sql.updates", ">> Applying \'{}\'...", file.filename().generic_string());
-
-            try
-            {
-                ApplyFile(pool, info, file);
-            }
-            catch (UpdateException&)
-            {
-                return false;
-            }
-        }
+        return false;
     }
 
     LOG_INFO("sql.updates", ">> Done!");
@@ -801,93 +692,7 @@ void Apply(DatabaseUpdatePool& pool, std::string const& query)
 // Returns true when the updates row of record was written together with the file.
 bool ApplyFile(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record)
 {
-    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
-        return ApplyFileThroughConnection(pool, info, path, record);
-
-    ApplyFile(pool, pool.GetConnectionInfo()->host, pool.GetConnectionInfo()->user,
-              pool.GetConnectionInfo()->password, pool.GetConnectionInfo()->port_or_socket,
-              pool.GetConnectionInfo()->database, pool.GetConnectionInfo()->ssl, path);
-    return false;
-}
-
-void ApplyFile(DatabaseUpdatePool& pool, std::string const& host, std::string const& user,
-               std::string const& password, std::string const& port_or_socket, std::string const& database,
-               std::string const& ssl, Path const& path)
-{
-    std::string configTempDir = sConfigMgr->GetOption<std::string>("TempDir", "");
-
-    auto tempDir = configTempDir.empty() ? std::filesystem::temp_directory_path().string() : configTempDir;
-
-    tempDir = Acore::String::AddSuffixIfNotExists(tempDir, std::filesystem::path::preferred_separator);
-
-    std::string confFileName = "mysql_ac.conf";
-
-    std::ofstream outfile (tempDir + confFileName);
-
-    outfile << "[client]\npassword = \"" << password << '"' << std::endl;
-
-    outfile.close();
-
-    std::vector<std::string> args;
-    args.reserve(9);
-
-    args.emplace_back("--defaults-extra-file="+tempDir + confFileName+"");
-
-    // CLI Client connection info
-    args.emplace_back("-h" + host);
-    args.emplace_back("-u" + user);
-
-    // Check if we want to connect through ip or socket (Unix only)
-#ifdef _WIN32
-
-    if (host == ".")
-        args.emplace_back("--protocol=PIPE");
-    else
-        args.emplace_back("-P" + port_or_socket);
-
-#else
-
-    if (!std::isdigit(port_or_socket[0]))
-    {
-        // We can't check if host == "." here, because it is named localhost if socket option is enabled
-        args.emplace_back("-P0");
-        args.emplace_back("--protocol=SOCKET");
-        args.emplace_back("-S" + port_or_socket);
-    }
-    else
-        // generic case
-        args.emplace_back("-P" + port_or_socket);
-
-#endif
-
-    // Set the default charset to utf8
-    args.emplace_back("--default-character-set=utf8");
-
-    // Set max allowed packet to 1 GB
-    args.emplace_back("--max-allowed-packet=1GB");
-
-    if (ssl == "ssl")
-        args.emplace_back("--ssl-mode=REQUIRED");
-
-    // Database
-    if (!database.empty())
-        args.emplace_back(database);
-
-    // Invokes a mysql process which doesn't leak credentials to logs
-    int const ret = Acore::StartProcess(DBUpdaterUtil::GetCorrectedMySQLExecutable(), args,
-        "sql.updates", path.generic_string(), true);
-
-    if (ret != EXIT_SUCCESS)
-    {
-        LOG_FATAL("sql.updates", "Applying of file \'{}\' to database \'{}\' failed!" \
-            " If you are a user, please pull the latest revision from the repository. "
-            "Also make sure you have not applied any of the databases with your sql client. "
-            "You cannot use auto-update system and import sql files from AzerothCore repository with your sql client. "
-            "If you are a developer, please fix your sql query.",
-            path.generic_string(), pool.GetConnectionInfo()->database);
-
-        FailUpdate();
-    }
+    return ApplyFileThroughConnection(pool, info, path, record);
 }
 
 } // anonymous namespace

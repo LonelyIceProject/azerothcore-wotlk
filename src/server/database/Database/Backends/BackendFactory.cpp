@@ -22,10 +22,6 @@
 #include <mutex>
 #include <optional>
 
-#ifdef ACORE_WITH_MYSQL
-#include "MySQLBackend.h"
-#endif
-
 #ifdef ACORE_WITH_SQLITE
 #include <sqlite3.h>
 #endif
@@ -42,19 +38,10 @@ namespace
 
         Registry()
         {
-#ifdef ACORE_WITH_MYSQL
-            DbBackendDriver mysql;
-            mysql.create = &CreateMySQLBackend;
-            mysql.caps = { 0, true, true, true };
-            mysql.init = &MySQLLibrary::Init;
-            mysql.end = &MySQLLibrary::End;
-            mysql.version = &MySQLLibrary::Version;
-            drivers[std::size_t(DatabaseBackend::MySQL)] = mysql;
-#endif
 #ifdef ACORE_WITH_SQLITE
             DbBackendDriver sqlite;
             sqlite.create = &CreateSQLiteBackend;
-            sqlite.caps = { 1, false, false, false };
+            sqlite.caps = { 1, false, false };
             sqlite.init = [] { sqlite3_initialize(); };
             sqlite.version = [] { return std::string("SQLite ") + sqlite3_libversion(); };
             drivers[std::size_t(DatabaseBackend::SQLite)] = sqlite;
@@ -128,7 +115,7 @@ DbBackendCaps GetBackendCaps(DatabaseBackend backend)
     if (std::optional<DbBackendDriver> driver = Find(backend))
         return driver->caps;
 
-    return { 0, true, true, false };
+    return { 0, true, true };
 }
 
 void BackendRegistry::InitAll()

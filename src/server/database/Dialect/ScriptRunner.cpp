@@ -276,7 +276,7 @@ struct ScriptRunner::Impl
         while (ok && reader.Next(statement))
         {
             current = &statement;
-            ok = target.RunsMySqlAsIs() ? ExecuteAsIs(statement.sql) : Execute(statement.sql);
+            ok = target.RunsScriptsAsWritten() ? ExecuteAsIs(statement.sql) : Execute(statement.sql);
             if (ok)
                 ++executed;
         }

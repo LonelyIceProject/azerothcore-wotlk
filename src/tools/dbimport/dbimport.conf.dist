@@ -51,16 +51,14 @@ LogsDir = ""
 SourceDirectory = ""
 
 #
-#    MySQLExecutable
-#        Description: The path to your MySQL CLI binary.
-#                     If the path is left empty, built-in path from cmake is used.
-#        Example:     "C:/Program Files/MySQL Server 8.4/bin/mysql.exe"
-#                     "mysql.exe"
-#                     "/usr/bin/mysql"
-#        Default:     ""
-#
+#    PluginsDir
+#        Description: Folder with plugins (one subfolder with a plugin.json each), loaded at start.
+#                     Only plugins that list this program in "server.apps" are loaded here, e.g.
+#                     the one providing the MySQL database backend.
+#                     Relative paths start at the working directory.
+#        Default:     "plugins"
 
-MySQLExecutable = ""
+PluginsDir = "plugins"
 
 #
 #    TempDir
