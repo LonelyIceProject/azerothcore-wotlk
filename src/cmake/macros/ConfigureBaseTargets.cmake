@@ -20,6 +20,11 @@ set(CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 20)
 message(STATUS "Enabled С++20 standard")
 
+# Targets outside the core that link against it (applications, plugins) need C++20 too
+target_compile_features(acore-compile-option-interface
+  INTERFACE
+    cxx_std_20)
+
 # Set build-directive (used in core to tell which buildtype we used)
 target_compile_definitions(acore-compile-option-interface
   INTERFACE
