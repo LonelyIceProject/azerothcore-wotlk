@@ -15,19 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _DATABASELIBRARY_H
-#define _DATABASELIBRARY_H
+#ifndef _BACKENDREGISTRY_H
+#define _BACKENDREGISTRY_H
 
-#include "Define.h"
 #include <string>
 
-// Process-wide init/teardown of the client library of every registered backend.
-namespace DatabaseLibrary
+// Used by DatabaseLibrary; drivers registered later are initialized on registration.
+namespace BackendRegistry
 {
-    AC_DATABASE_API void Init();
-    AC_DATABASE_API void End();
-    // e.g. "MySQL 8.0.36, SQLite 3.50.4"
-    AC_DATABASE_API std::string Version();
+    void InitAll();
+    void EndAll();
+    std::string Versions();
 }
 
 #endif

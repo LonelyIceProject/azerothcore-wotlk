@@ -43,8 +43,7 @@ std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
 
 bool DBUpdaterUtil::CheckPrerequisites(DatabaseBackend backend)
 {
-    // Only MySQL applies sql files through an external client
-    return backend != DatabaseBackend::MySQL || CheckExecutable();
+    return !GetBackendCaps(backend).externalScripts || CheckExecutable();
 }
 
 bool DBUpdaterUtil::CheckExecutable()
@@ -501,7 +500,7 @@ bool CreateDatabase(DatabaseUpdatePool& pool)
 
     LOG_INFO("sql.updates", "Creating database \"{}\"...", pool.GetConnectionInfo()->database);
 
-    if (GetBackend(pool) != DatabaseBackend::MySQL)
+    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
     {
         std::unique_ptr<IDbConnectionBackend> backend = CreateBackend(*pool.GetConnectionInfo());
         DbError const error = backend ? backend->Open(true) : DbError{ DbErrorClass::Other, 0, "backend is not available" };
@@ -733,7 +732,7 @@ bool PopulateDatabase(DatabaseUpdatePool& pool, DBUpdaterInfo const& info)
 
     std::sort(sqlFiles.begin(), sqlFiles.end());
 
-    if (GetBackend(pool) != DatabaseBackend::MySQL)
+    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
     {
         try
         {
@@ -802,7 +801,7 @@ void Apply(DatabaseUpdatePool& pool, std::string const& query)
 // Returns true when the updates row of record was written together with the file.
 bool ApplyFile(DatabaseUpdatePool& pool, DBUpdaterInfo const& info, Path const& path, UpdateFileRecord const* record)
 {
-    if (GetBackend(pool) != DatabaseBackend::MySQL)
+    if (!GetBackendCaps(GetBackend(pool)).externalScripts)
         return ApplyFileThroughConnection(pool, info, path, record);
 
     ApplyFile(pool, pool.GetConnectionInfo()->host, pool.GetConnectionInfo()->user,

@@ -17,6 +17,7 @@
 
 #include "SQLiteBackend.h"
 #include "Config.h"
+#include "SQLiteExtensions.h"
 #include "Log.h"
 #include "SQLiteStatement.h"
 #include "SqliteFunctions.h"
@@ -93,6 +94,19 @@ namespace
     private:
         sqlite3_stmt* _stmt;
     };
+}
+
+bool AddSQLiteExtension(SQLiteExtensionInit init)
+{
+    int const rc = sqlite3_auto_extension(reinterpret_cast<void (*)()>(init));
+    if (rc != SQLITE_OK)
+        LOG_ERROR("sql.driver", "Cannot add an SQLite extension: {}", sqlite3_errstr(rc));
+    return rc == SQLITE_OK;
+}
+
+void RemoveSQLiteExtension(SQLiteExtensionInit init)
+{
+    sqlite3_cancel_auto_extension(reinterpret_cast<void (*)()>(init));
 }
 
 SQLiteBackend::SQLiteBackend(DatabaseConnectionInfo const& info) :

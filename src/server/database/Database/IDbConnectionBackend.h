@@ -71,6 +71,22 @@ public:
     [[nodiscard]] virtual DatabaseBackend Backend() const = 0;
 };
 
+// Implementation of a backend. The built-in ones register themselves; a module can register one
+// (or replace a built-in one) before the databases are opened. Plain function pointers only, so a
+// driver living in a shared library leaves nothing behind once it is unregistered.
+struct DbBackendDriver
+{
+    std::unique_ptr<IDbConnectionBackend> (*create)(DatabaseConnectionInfo const& info) = nullptr;
+    DbBackendCaps caps;
+    void (*init)() = nullptr;               // once, before the first connection
+    void (*end)() = nullptr;
+    std::string (*version)() = nullptr;     // client library, e.g. "MySQL 8.0.36"
+};
+
+AC_DATABASE_API void RegisterBackendDriver(DatabaseBackend backend, DbBackendDriver const& driver);
+AC_DATABASE_API void UnregisterBackendDriver(DatabaseBackend backend);
+AC_DATABASE_API bool IsBackendAvailable(DatabaseBackend backend);
+
 AC_DATABASE_API std::unique_ptr<IDbConnectionBackend> CreateBackend(DatabaseConnectionInfo const& info);
 AC_DATABASE_API DbBackendCaps GetBackendCaps(DatabaseBackend backend);
 

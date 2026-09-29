@@ -15,19 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _DATABASELIBRARY_H
-#define _DATABASELIBRARY_H
+#ifndef _SQLITEEXTENSIONS_H
+#define _SQLITEEXTENSIONS_H
 
 #include "Define.h"
-#include <string>
 
-// Process-wide init/teardown of the client library of every registered backend.
-namespace DatabaseLibrary
-{
-    AC_DATABASE_API void Init();
-    AC_DATABASE_API void End();
-    // e.g. "MySQL 8.0.36, SQLite 3.50.4"
-    AC_DATABASE_API std::string Version();
-}
+struct sqlite3;
+struct sqlite3_api_routines;
+
+// Entry point of an SQLite extension (functions, collations, virtual table modules). SQLite lives inside the
+// database library, so an extension compiled elsewhere is built against sqlite3ext.h and reaches SQLite
+// through api (SQLITE_EXTENSION_INIT2). Returns SQLITE_OK or an error code with *errorMessage set.
+using SQLiteExtensionInit = int (*)(sqlite3* db, char** errorMessage, sqlite3_api_routines const* api);
+
+// Runs init on every SQLite connection opened afterwards.
+AC_DATABASE_API bool AddSQLiteExtension(SQLiteExtensionInit init);
+AC_DATABASE_API void RemoveSQLiteExtension(SQLiteExtensionInit init);
 
 #endif

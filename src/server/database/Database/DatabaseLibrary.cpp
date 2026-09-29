@@ -16,45 +16,19 @@
  */
 
 #include "DatabaseLibrary.h"
-#include "StringFormat.h"
-
-#ifdef ACORE_WITH_MYSQL
-#include "MySQLBackend.h"
-#endif
-
-#ifdef ACORE_WITH_SQLITE
-#include <sqlite3.h>
-#endif
+#include "BackendRegistry.h"
 
 void DatabaseLibrary::Init()
 {
-#ifdef ACORE_WITH_MYSQL
-    MySQLLibrary::Init();
-#endif
-#ifdef ACORE_WITH_SQLITE
-    sqlite3_initialize();
-#endif
+    BackendRegistry::InitAll();
 }
 
 void DatabaseLibrary::End()
 {
-#ifdef ACORE_WITH_MYSQL
-    MySQLLibrary::End();
-#endif
+    BackendRegistry::EndAll();
 }
 
 std::string DatabaseLibrary::Version()
 {
-    std::string version;
-
-#ifdef ACORE_WITH_MYSQL
-    version = MySQLLibrary::Version();
-#endif
-#ifdef ACORE_WITH_SQLITE
-    if (!version.empty())
-        version += ", ";
-    version += Acore::StringFormat("SQLite {}", sqlite3_libversion());
-#endif
-
-    return version;
+    return BackendRegistry::Versions();
 }

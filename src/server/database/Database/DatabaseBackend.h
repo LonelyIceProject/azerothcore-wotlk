@@ -67,6 +67,7 @@ struct DbBackendCaps
     uint8 maxAsyncWorkers = 0;      // 0 = unlimited
     bool needsKeepAlive = false;
     bool supportsReconnect = false;
+    bool externalScripts = false;   // sql files are applied by an external client (mysql CLI) instead of the connection
 };
 
 #endif
