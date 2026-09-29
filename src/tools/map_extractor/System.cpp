@@ -429,6 +429,7 @@ bool ConvertADT(std::string const& inputPath, std::vector<char>& output, uint32 
     memset(liquid_show, 0, sizeof(liquid_show));
     memset(liquid_flags, 0, sizeof(liquid_flags));
     memset(liquid_entry, 0, sizeof(liquid_entry));
+    memset(liquid_height, 0, sizeof(liquid_height));
 
     memset(holes, 0, sizeof(holes));
 
