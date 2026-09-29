@@ -47,6 +47,9 @@ public:
     bool TableExists(std::string_view table) override;
     std::vector<std::string> ListColumns(std::string_view table) override;
 
+    // Used when the backend is registered without externalScripts (sql files applied over the connection).
+    std::unique_ptr<IScriptTarget> CreateScriptTarget() override;
+
     [[nodiscard]] std::string ServerInfo() const override;
     [[nodiscard]] DatabaseBackend Backend() const override { return DatabaseBackend::MySQL; }
 

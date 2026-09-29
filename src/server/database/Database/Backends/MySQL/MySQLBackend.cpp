@@ -18,6 +18,7 @@
 #include "MySQLBackend.h"
 #include "Errors.h"
 #include "Log.h"
+#include "MySQLScriptTarget.h"
 #include "MySQLStatement.h"
 #include "SqlDialect.h"
 #include "StringConvert.h"
@@ -156,7 +157,7 @@ DbError MySQLBackend::LastError() const
     return MakeMySQLError(mysql_errno(_mysql), mysql_error(_mysql));
 }
 
-DbError MySQLBackend::Open(bool /*create*/)
+DbError MySQLBackend::Open(bool create)
 {
     Close();
 
@@ -212,8 +213,9 @@ DbError MySQLBackend::Open(bool /*create*/)
         mysql_options(mysqlInit, MYSQL_OPT_SSL_MODE, (char const*)&opt_use_ssl);
     }
 
+    // create: the database does not exist yet, so the server is reached without one and it is made below
     _mysql = mysql_real_connect(mysqlInit, _info.host.c_str(), _info.user.c_str(),
-        _info.password.c_str(), _info.database.c_str(), port, unix_socket, 0);
+        _info.password.c_str(), create ? nullptr : _info.database.c_str(), port, unix_socket, 0);
 
     if (!_mysql)
     {
@@ -249,6 +251,24 @@ DbError MySQLBackend::Open(bool /*create*/)
     // set connection properties to UTF8 to properly handle locales for different
     // server configs - core sends data in UTF8, so MySQL must expect UTF8 too
     mysql_set_character_set(_mysql, "utf8mb4");
+
+    if (create)
+    {
+        DbError err;
+        if (!Execute(Acore::StringFormat("CREATE DATABASE IF NOT EXISTS `{}` DEFAULT CHARACTER SET UTF8MB4 COLLATE utf8mb4_general_ci", _info.database), err))
+        {
+            Close();
+            return err;
+        }
+
+        if (mysql_select_db(_mysql, _info.database.c_str()))
+        {
+            err = LastError();
+            Close();
+            return err;
+        }
+    }
+
     return {};
 }
 
@@ -438,6 +458,11 @@ std::vector<std::string> MySQLBackend::ListColumns(std::string_view table)
         columns.emplace_back(rows->Get(i, 0).AsBytes());
 
     return columns;
+}
+
+std::unique_ptr<IScriptTarget> MySQLBackend::CreateScriptTarget()
+{
+    return std::make_unique<MySQLScriptTarget>(*this);
 }
 
 std::string MySQLBackend::ServerInfo() const

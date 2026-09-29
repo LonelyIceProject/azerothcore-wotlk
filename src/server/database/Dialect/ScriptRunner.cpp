@@ -276,7 +276,7 @@ struct ScriptRunner::Impl
         while (ok && reader.Next(statement))
         {
             current = &statement;
-            ok = Execute(statement.sql);
+            ok = target.RunsMySqlAsIs() ? ExecuteAsIs(statement.sql) : Execute(statement.sql);
             if (ok)
                 ++executed;
         }
@@ -297,6 +297,12 @@ struct ScriptRunner::Impl
                 ok = Fail(restore.message);
         }
         return ok;
+    }
+
+    bool ExecuteAsIs(std::string_view sql)
+    {
+        DbError err;
+        return target.Exec(sql, err) || Fail(err.message);
     }
 
     bool Execute(std::string_view sql)
