@@ -102,14 +102,19 @@ char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
                     dataOffset += sizeof(uint8);
                     break;
                 case FT_STRING:
+                {
                     // an empty column means "not overridden", not "blank it"
-                    if (fields[sqlColumnNumber].Get<std::string>().empty() && oldDataValue)
+                    std::string_view const text = fields[sqlColumnNumber].Get<std::string_view>();
+                    if (text.empty() && oldDataValue)
                         *reinterpret_cast<char**>(&dataValue[dataOffset]) = *reinterpret_cast<char**>(&oldDataValue[dataOffset]);
+                    else if (text.empty())
+                        *reinterpret_cast<char const**>(&dataValue[dataOffset]) = "";
                     else
-                        *reinterpret_cast<char**>(&dataValue[dataOffset]) = CloneStringToPool(fields[sqlColumnNumber].Get<std::string>());
+                        *reinterpret_cast<char**>(&dataValue[dataOffset]) = CloneStringToPool(text);
 
                     dataOffset += sizeof(char*);
                     break;
+                }
                 case FT_SORT:
                 case FT_NA:
                 case FT_NA_BYTE:
@@ -140,10 +145,11 @@ char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
     return dataTable.release();
 }
 
-char* DBCDatabaseLoader::CloneStringToPool(std::string const& str)
+char* DBCDatabaseLoader::CloneStringToPool(std::string_view str)
 {
     char* buf = new char[str.size() + 1];
-    memcpy(buf, str.c_str(), str.size() + 1);
+    memcpy(buf, str.data(), str.size());
+    buf[str.size()] = '\0';
     _stringPool.push_back(buf);
     return buf;
 }

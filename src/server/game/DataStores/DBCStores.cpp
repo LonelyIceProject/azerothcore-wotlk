@@ -17,6 +17,7 @@
 
 #include "DBCStores.h"
 #include "BattlegroundMgr.h"
+#include "Config.h"
 #include "DBCFileLoader.h"
 #include "DBCfmt.h"
 #include "Errors.h"
@@ -211,6 +212,139 @@ DBCStorage <WMOAreaTableEntry> sWMOAreaTableStore(WMOAreaTableEntryfmt);
 DBCStorage <WorldMapAreaEntry> sWorldMapAreaStore(WorldMapAreaEntryfmt);
 DBCStorage <WorldMapOverlayEntry> sWorldMapOverlayStore(WorldMapOverlayEntryfmt);
 
+// Every DBC the server loads: store, file, table of rows that override or extend the file.
+// Not loaded: gtOCTRegenMP.dbc (unused), ItemCondExtCosts.dbc.
+#define ACORE_DBC_STORES(X) \
+    X(sAreaTableStore,                       "AreaTable.dbc",                        "areatable_dbc") \
+    X(sAchievementStore,                     "Achievement.dbc",                      "achievement_dbc") \
+    X(sAchievementCategoryStore,             "Achievement_Category.dbc",             "achievement_category_dbc") \
+    X(sAchievementCriteriaStore,             "Achievement_Criteria.dbc",             "achievement_criteria_dbc") \
+    X(sAreaGroupStore,                       "AreaGroup.dbc",                        "areagroup_dbc") \
+    X(sAreaPOIStore,                         "AreaPOI.dbc",                          "areapoi_dbc") \
+    X(sAuctionHouseStore,                    "AuctionHouse.dbc",                     "auctionhouse_dbc") \
+    X(sBankBagSlotPricesStore,               "BankBagSlotPrices.dbc",                "bankbagslotprices_dbc") \
+    X(sBattlemasterListStore,                "BattlemasterList.dbc",                 "battlemasterlist_dbc") \
+    X(sBarberShopStyleStore,                 "BarberShopStyle.dbc",                  "barbershopstyle_dbc") \
+    X(sCharStartOutfitStore,                 "CharStartOutfit.dbc",                  "charstartoutfit_dbc") \
+    X(sCharSectionsStore,                    "CharSections.dbc",                     "charsections_dbc") \
+    X(sCharTitlesStore,                      "CharTitles.dbc",                       "chartitles_dbc") \
+    X(sChatChannelsStore,                    "ChatChannels.dbc",                     "chatchannels_dbc") \
+    X(sChrClassesStore,                      "ChrClasses.dbc",                       "chrclasses_dbc") \
+    X(sChrRacesStore,                        "ChrRaces.dbc",                         "chrraces_dbc") \
+    X(sCinematicCameraStore,                 "CinematicCamera.dbc",                  "cinematiccamera_dbc") \
+    X(sCinematicSequencesStore,              "CinematicSequences.dbc",               "cinematicsequences_dbc") \
+    X(sCreatureDisplayInfoStore,             "CreatureDisplayInfo.dbc",              "creaturedisplayinfo_dbc") \
+    X(sCreatureDisplayInfoExtraStore,        "CreatureDisplayInfoExtra.dbc",         "creaturedisplayinfoextra_dbc") \
+    X(sCreatureFamilyStore,                  "CreatureFamily.dbc",                   "creaturefamily_dbc") \
+    X(sCreatureModelDataStore,               "CreatureModelData.dbc",                "creaturemodeldata_dbc") \
+    X(sCreatureSpellDataStore,               "CreatureSpellData.dbc",                "creaturespelldata_dbc") \
+    X(sCreatureTypeStore,                    "CreatureType.dbc",                     "creaturetype_dbc") \
+    X(sCurrencyTypesStore,                   "CurrencyTypes.dbc",                    "currencytypes_dbc") \
+    X(sDestructibleModelDataStore,           "DestructibleModelData.dbc",            "destructiblemodeldata_dbc") \
+    X(sDungeonEncounterStore,                "DungeonEncounter.dbc",                 "dungeonencounter_dbc") \
+    X(sDurabilityCostsStore,                 "DurabilityCosts.dbc",                  "durabilitycosts_dbc") \
+    X(sDurabilityQualityStore,               "DurabilityQuality.dbc",                "durabilityquality_dbc") \
+    X(sEmotesStore,                          "Emotes.dbc",                           "emotes_dbc") \
+    X(sEmotesTextStore,                      "EmotesText.dbc",                       "emotestext_dbc") \
+    X(sEmotesTextSoundStore,                 "EmotesTextSound.dbc",                  "emotetextsound_dbc") \
+    X(sFactionStore,                         "Faction.dbc",                          "faction_dbc") \
+    X(sFactionTemplateStore,                 "FactionTemplate.dbc",                  "factiontemplate_dbc") \
+    X(sGameObjectArtKitStore,                "GameObjectArtKit.dbc",                 "gameobjectartkit_dbc") \
+    X(sGameObjectDisplayInfoStore,           "GameObjectDisplayInfo.dbc",            "gameobjectdisplayinfo_dbc") \
+    X(sGemPropertiesStore,                   "GemProperties.dbc",                    "gemproperties_dbc") \
+    X(sGlyphPropertiesStore,                 "GlyphProperties.dbc",                  "glyphproperties_dbc") \
+    X(sGlyphSlotStore,                       "GlyphSlot.dbc",                        "glyphslot_dbc") \
+    X(sGtBarberShopCostBaseStore,            "gtBarberShopCostBase.dbc",             "gtbarbershopcostbase_dbc") \
+    X(sGtCombatRatingsStore,                 "gtCombatRatings.dbc",                  "gtcombatratings_dbc") \
+    X(sGtChanceToMeleeCritBaseStore,         "gtChanceToMeleeCritBase.dbc",          "gtchancetomeleecritbase_dbc") \
+    X(sGtChanceToMeleeCritStore,             "gtChanceToMeleeCrit.dbc",              "gtchancetomeleecrit_dbc") \
+    X(sGtChanceToSpellCritBaseStore,         "gtChanceToSpellCritBase.dbc",          "gtchancetospellcritbase_dbc") \
+    X(sGtChanceToSpellCritStore,             "gtChanceToSpellCrit.dbc",              "gtchancetospellcrit_dbc") \
+    X(sGtNPCManaCostScalerStore,             "gtNPCManaCostScaler.dbc",              "gtnpcmanacostscaler_dbc") \
+    X(sGtOCTClassCombatRatingScalarStore,    "gtOCTClassCombatRatingScalar.dbc",     "gtoctclasscombatratingscalar_dbc") \
+    X(sGtOCTRegenHPStore,                    "gtOCTRegenHP.dbc",                     "gtoctregenhp_dbc") \
+    X(sGtRegenHPPerSptStore,                 "gtRegenHPPerSpt.dbc",                  "gtregenhpperspt_dbc") \
+    X(sGtRegenMPPerSptStore,                 "gtRegenMPPerSpt.dbc",                  "gtregenmpperspt_dbc") \
+    X(sHolidaysStore,                        "Holidays.dbc",                         "holidays_dbc") \
+    X(sItemStore,                            "Item.dbc",                             "item_dbc") \
+    X(sItemBagFamilyStore,                   "ItemBagFamily.dbc",                    "itembagfamily_dbc") \
+    X(sItemDisplayInfoStore,                 "ItemDisplayInfo.dbc",                  "itemdisplayinfo_dbc") \
+    X(sItemExtendedCostStore,                "ItemExtendedCost.dbc",                 "itemextendedcost_dbc") \
+    X(sItemLimitCategoryStore,               "ItemLimitCategory.dbc",                "itemlimitcategory_dbc") \
+    X(sItemRandomPropertiesStore,            "ItemRandomProperties.dbc",             "itemrandomproperties_dbc") \
+    X(sItemRandomSuffixStore,                "ItemRandomSuffix.dbc",                 "itemrandomsuffix_dbc") \
+    X(sItemSetStore,                         "ItemSet.dbc",                          "itemset_dbc") \
+    X(sLFGDungeonStore,                      "LFGDungeons.dbc",                      "lfgdungeons_dbc") \
+    X(sLightStore,                           "Light.dbc",                            "light_dbc") \
+    X(sLiquidTypeStore,                      "LiquidType.dbc",                       "liquidtype_dbc") \
+    X(sLockStore,                            "Lock.dbc",                             "lock_dbc") \
+    X(sMailTemplateStore,                    "MailTemplate.dbc",                     "mailtemplate_dbc") \
+    X(sMapStore,                             "Map.dbc",                              "map_dbc") \
+    X(sMapDifficultyStore,                   "MapDifficulty.dbc",                    "mapdifficulty_dbc") \
+    X(sMovieStore,                           "Movie.dbc",                            "movie_dbc") \
+    X(sNamesReservedStore,                   "NamesReserved.dbc",                    "namesreserved_dbc") \
+    X(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc") \
+    X(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc") \
+    X(sPowerDisplayStore,                    "PowerDisplay.dbc",                     "powerdisplay_dbc") \
+    X(sPvPDifficultyStore,                   "PvpDifficulty.dbc",                    "pvpdifficulty_dbc") \
+    X(sQuestXPStore,                         "QuestXP.dbc",                          "questxp_dbc") \
+    X(sQuestFactionRewardStore,              "QuestFactionReward.dbc",               "questfactionreward_dbc") \
+    X(sQuestSortStore,                       "QuestSort.dbc",                        "questsort_dbc") \
+    X(sRandomPropertiesPointsStore,          "RandPropPoints.dbc",                   "randproppoints_dbc") \
+    X(sScalingStatDistributionStore,         "ScalingStatDistribution.dbc",          "scalingstatdistribution_dbc") \
+    X(sScalingStatValuesStore,               "ScalingStatValues.dbc",                "scalingstatvalues_dbc") \
+    X(sSkillLineStore,                       "SkillLine.dbc",                        "skillline_dbc") \
+    X(sSkillLineAbilityStore,                "SkillLineAbility.dbc",                 "skilllineability_dbc") \
+    X(sSkillRaceClassInfoStore,              "SkillRaceClassInfo.dbc",               "skillraceclassinfo_dbc") \
+    X(sSkillTiersStore,                      "SkillTiers.dbc",                       "skilltiers_dbc") \
+    X(sSoundEntriesStore,                    "SoundEntries.dbc",                     "soundentries_dbc") \
+    X(sSpellStore,                           "Spell.dbc",                            "spell_dbc") \
+    X(sSpellCastTimesStore,                  "SpellCastTimes.dbc",                   "spellcasttimes_dbc") \
+    X(sSpellCategoryStore,                   "SpellCategory.dbc",                    "spellcategory_dbc") \
+    X(sSpellDifficultyStore,                 "SpellDifficulty.dbc",                  "spelldifficulty_dbc") \
+    X(sSpellDurationStore,                   "SpellDuration.dbc",                    "spellduration_dbc") \
+    X(sSpellFocusObjectStore,                "SpellFocusObject.dbc",                 "spellfocusobject_dbc") \
+    X(sSpellItemEnchantmentStore,            "SpellItemEnchantment.dbc",             "spellitemenchantment_dbc") \
+    X(sSpellItemEnchantmentConditionStore,   "SpellItemEnchantmentCondition.dbc",    "spellitemenchantmentcondition_dbc") \
+    X(sSpellRadiusStore,                     "SpellRadius.dbc",                      "spellradius_dbc") \
+    X(sSpellRangeStore,                      "SpellRange.dbc",                       "spellrange_dbc") \
+    X(sSpellRuneCostStore,                   "SpellRuneCost.dbc",                    "spellrunecost_dbc") \
+    X(sSpellShapeshiftFormStore,             "SpellShapeshiftForm.dbc",              "spellshapeshiftform_dbc") \
+    X(sSpellVisualStore,                     "SpellVisual.dbc",                      "spellvisual_dbc") \
+    X(sStableSlotPricesStore,                "StableSlotPrices.dbc",                 "stableslotprices_dbc") \
+    X(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc") \
+    X(sTalentStore,                          "Talent.dbc",                           "talent_dbc") \
+    X(sTalentTabStore,                       "TalentTab.dbc",                        "talenttab_dbc") \
+    X(sTaxiNodesStore,                       "TaxiNodes.dbc",                        "taxinodes_dbc") \
+    X(sTaxiPathStore,                        "TaxiPath.dbc",                         "taxipath_dbc") \
+    X(sTaxiPathNodeStore,                    "TaxiPathNode.dbc",                     "taxipathnode_dbc") \
+    X(sTeamContributionPointsStore,          "TeamContributionPoints.dbc",           "teamcontributionpoints_dbc") \
+    X(sTotemCategoryStore,                   "TotemCategory.dbc",                    "totemcategory_dbc") \
+    X(sTransportAnimationStore,              "TransportAnimation.dbc",               "transportanimation_dbc") \
+    X(sTransportRotationStore,               "TransportRotation.dbc",                "transportrotation_dbc") \
+    X(sVehicleStore,                         "Vehicle.dbc",                          "vehicle_dbc") \
+    X(sVehicleSeatStore,                     "VehicleSeat.dbc",                      "vehicleseat_dbc") \
+    X(sWMOAreaTableStore,                    "WMOAreaTable.dbc",                     "wmoareatable_dbc") \
+    X(sWorldMapAreaStore,                    "WorldMapArea.dbc",                     "worldmaparea_dbc") \
+    X(sWorldMapOverlayStore,                 "WorldMapOverlay.dbc",                  "worldmapoverlay_dbc")
+
+std::string GetDBCTableName(std::string_view file)
+{
+    std::string_view const stem = file.substr(0, file.find('.'));
+    std::string table = "dbc_";
+    for (char c : stem)
+        table += char(std::tolower(uint8(c)));
+    return table;
+}
+
+std::vector<DBCFileInfo> const& GetDBCFiles()
+{
+#define DBC_FILE_INFO(store, file, dbtable) DBCFileInfo{ file, store.GetFormat(), dbtable },
+    static std::vector<DBCFileInfo> const files = { ACORE_DBC_STORES(DBC_FILE_INFO) };
+#undef DBC_FILE_INFO
+    return files;
+}
+
 typedef std::list<std::string> StoreProblemList;
 
 uint32 DBCFileCount = 0;
@@ -224,7 +358,7 @@ static bool LoadDBC_assert_print(uint32 fsize, uint32 rsize, std::string const& 
 }
 
 template<class T>
-inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCStorage<T>& storage, std::string const& dbcPath, std::string const& filename, char const* dbTable = nullptr)
+inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCStorage<T>& storage, std::string const& dbcPath, std::string const& filename, char const* dbTable, bool fromDatabase)
 {
     // compatibility format and C++ structure sizes
     ASSERT(DBCFileLoader::GetFormatRecordSize(storage.GetFormat()) == sizeof(T) || LoadDBC_assert_print(DBCFileLoader::GetFormatRecordSize(storage.GetFormat()), sizeof(T), filename));
@@ -233,7 +367,9 @@ inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCSt
     std::string dbcFilename = dbcPath + filename;
     bool existDBData = false;
 
-    if (storage.Load(dbcFilename.c_str()))
+    if (fromDatabase)
+        storage.LoadFromDB(GetDBCTableName(filename).c_str(), storage.GetFormat());
+    else if (storage.Load(dbcFilename.c_str()))
     {
         for (uint8 i = 0; i < TOTAL_LOCALES; ++i)
         {
@@ -256,7 +392,9 @@ inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCSt
     if (storage.GetNumRows())
         existDBData = true;
 
-    if (!existDBData)
+    if (!existDBData && fromDatabase)
+        errors.push_back(GetDBCTableName(filename) + " (world database)");
+    else if (!existDBData)
     {
         // sort problematic dbc to (1) non compatible and (2) non-existed
         if (FILE* f = fopen(dbcFilename.c_str(), "rb"))
@@ -280,124 +418,12 @@ void LoadDBCStores(std::string const& dataPath)
 
     StoreProblemList bad_dbc_files;
     uint32 availableDbcLocales = 0xFFFFFFFF;
+    bool const fromDatabase = sConfigMgr->GetOption<bool>("DBC.FromDatabase", false);
+    if (fromDatabase)
+        LOG_INFO("server.loading", "Loading DBC data from the world database");
 
-#define LOAD_DBC(store, file, dbtable) LoadDBC(availableDbcLocales, bad_dbc_files, store, dbcPath, file, dbtable)
-
-    LOAD_DBC(sAreaTableStore,                       "AreaTable.dbc",                        "areatable_dbc");
-    LOAD_DBC(sAchievementStore,                     "Achievement.dbc",                      "achievement_dbc");
-    LOAD_DBC(sAchievementCategoryStore,             "Achievement_Category.dbc",             "achievement_category_dbc");
-    LOAD_DBC(sAchievementCriteriaStore,             "Achievement_Criteria.dbc",             "achievement_criteria_dbc");
-    LOAD_DBC(sAreaGroupStore,                       "AreaGroup.dbc",                        "areagroup_dbc");
-    LOAD_DBC(sAreaPOIStore,                         "AreaPOI.dbc",                          "areapoi_dbc");
-    LOAD_DBC(sAuctionHouseStore,                    "AuctionHouse.dbc",                     "auctionhouse_dbc");
-    LOAD_DBC(sBankBagSlotPricesStore,               "BankBagSlotPrices.dbc",                "bankbagslotprices_dbc");
-    LOAD_DBC(sBattlemasterListStore,                "BattlemasterList.dbc",                 "battlemasterlist_dbc");
-    LOAD_DBC(sBarberShopStyleStore,                 "BarberShopStyle.dbc",                  "barbershopstyle_dbc");
-    LOAD_DBC(sCharStartOutfitStore,                 "CharStartOutfit.dbc",                  "charstartoutfit_dbc");
-    LOAD_DBC(sCharSectionsStore,                    "CharSections.dbc",                     "charsections_dbc");
-    LOAD_DBC(sCharTitlesStore,                      "CharTitles.dbc",                       "chartitles_dbc");
-    LOAD_DBC(sChatChannelsStore,                    "ChatChannels.dbc",                     "chatchannels_dbc");
-    LOAD_DBC(sChrClassesStore,                      "ChrClasses.dbc",                       "chrclasses_dbc");
-    LOAD_DBC(sChrRacesStore,                        "ChrRaces.dbc",                         "chrraces_dbc");
-    LOAD_DBC(sCinematicCameraStore,                 "CinematicCamera.dbc",                  "cinematiccamera_dbc");
-    LOAD_DBC(sCinematicSequencesStore,              "CinematicSequences.dbc",               "cinematicsequences_dbc");
-    LOAD_DBC(sCreatureDisplayInfoStore,             "CreatureDisplayInfo.dbc",              "creaturedisplayinfo_dbc");
-    LOAD_DBC(sCreatureDisplayInfoExtraStore,        "CreatureDisplayInfoExtra.dbc",         "creaturedisplayinfoextra_dbc");
-    LOAD_DBC(sCreatureFamilyStore,                  "CreatureFamily.dbc",                   "creaturefamily_dbc");
-    LOAD_DBC(sCreatureModelDataStore,               "CreatureModelData.dbc",                "creaturemodeldata_dbc");
-    LOAD_DBC(sCreatureSpellDataStore,               "CreatureSpellData.dbc",                "creaturespelldata_dbc");
-    LOAD_DBC(sCreatureTypeStore,                    "CreatureType.dbc",                     "creaturetype_dbc");
-    LOAD_DBC(sCurrencyTypesStore,                   "CurrencyTypes.dbc",                    "currencytypes_dbc");
-    LOAD_DBC(sDestructibleModelDataStore,           "DestructibleModelData.dbc",            "destructiblemodeldata_dbc");
-    LOAD_DBC(sDungeonEncounterStore,                "DungeonEncounter.dbc",                 "dungeonencounter_dbc");
-    LOAD_DBC(sDurabilityCostsStore,                 "DurabilityCosts.dbc",                  "durabilitycosts_dbc");
-    LOAD_DBC(sDurabilityQualityStore,               "DurabilityQuality.dbc",                "durabilityquality_dbc");
-    LOAD_DBC(sEmotesStore,                          "Emotes.dbc",                           "emotes_dbc");
-    LOAD_DBC(sEmotesTextStore,                      "EmotesText.dbc",                       "emotestext_dbc");
-    LOAD_DBC(sEmotesTextSoundStore,                 "EmotesTextSound.dbc",                  "emotetextsound_dbc");
-    LOAD_DBC(sFactionStore,                         "Faction.dbc",                          "faction_dbc");
-    LOAD_DBC(sFactionTemplateStore,                 "FactionTemplate.dbc",                  "factiontemplate_dbc");
-    LOAD_DBC(sGameObjectArtKitStore,                "GameObjectArtKit.dbc",                 "gameobjectartkit_dbc");
-    LOAD_DBC(sGameObjectDisplayInfoStore,           "GameObjectDisplayInfo.dbc",            "gameobjectdisplayinfo_dbc");
-    LOAD_DBC(sGemPropertiesStore,                   "GemProperties.dbc",                    "gemproperties_dbc");
-    LOAD_DBC(sGlyphPropertiesStore,                 "GlyphProperties.dbc",                  "glyphproperties_dbc");
-    LOAD_DBC(sGlyphSlotStore,                       "GlyphSlot.dbc",                        "glyphslot_dbc");
-    LOAD_DBC(sGtBarberShopCostBaseStore,            "gtBarberShopCostBase.dbc",             "gtbarbershopcostbase_dbc");
-    LOAD_DBC(sGtCombatRatingsStore,                 "gtCombatRatings.dbc",                  "gtcombatratings_dbc");
-    LOAD_DBC(sGtChanceToMeleeCritBaseStore,         "gtChanceToMeleeCritBase.dbc",          "gtchancetomeleecritbase_dbc");
-    LOAD_DBC(sGtChanceToMeleeCritStore,             "gtChanceToMeleeCrit.dbc",              "gtchancetomeleecrit_dbc");
-    LOAD_DBC(sGtChanceToSpellCritBaseStore,         "gtChanceToSpellCritBase.dbc",          "gtchancetospellcritbase_dbc");
-    LOAD_DBC(sGtChanceToSpellCritStore,             "gtChanceToSpellCrit.dbc",              "gtchancetospellcrit_dbc");
-    LOAD_DBC(sGtNPCManaCostScalerStore,             "gtNPCManaCostScaler.dbc",              "gtnpcmanacostscaler_dbc");
-    LOAD_DBC(sGtOCTClassCombatRatingScalarStore,    "gtOCTClassCombatRatingScalar.dbc",     "gtoctclasscombatratingscalar_dbc");
-    LOAD_DBC(sGtOCTRegenHPStore,                    "gtOCTRegenHP.dbc",                     "gtoctregenhp_dbc");
-    //LOAD_DBC(sGtOCTRegenMPStore,                  "gtOCTRegenMP.dbc",                     "gtoctregenmp_dbc");       -- not used currently
-    LOAD_DBC(sGtRegenHPPerSptStore,                 "gtRegenHPPerSpt.dbc",                  "gtregenhpperspt_dbc");
-    LOAD_DBC(sGtRegenMPPerSptStore,                 "gtRegenMPPerSpt.dbc",                  "gtregenmpperspt_dbc");
-    LOAD_DBC(sHolidaysStore,                        "Holidays.dbc",                         "holidays_dbc");
-    LOAD_DBC(sItemStore,                            "Item.dbc",                             "item_dbc");
-    LOAD_DBC(sItemBagFamilyStore,                   "ItemBagFamily.dbc",                    "itembagfamily_dbc");
-    LOAD_DBC(sItemDisplayInfoStore,                 "ItemDisplayInfo.dbc",                  "itemdisplayinfo_dbc");
-    //LOAD_DBC(sItemCondExtCostsStore,              "ItemCondExtCosts.dbc",                 "itemcondextcosts_dbc");
-    LOAD_DBC(sItemExtendedCostStore,                "ItemExtendedCost.dbc",                 "itemextendedcost_dbc");
-    LOAD_DBC(sItemLimitCategoryStore,               "ItemLimitCategory.dbc",                "itemlimitcategory_dbc");
-    LOAD_DBC(sItemRandomPropertiesStore,            "ItemRandomProperties.dbc",             "itemrandomproperties_dbc");
-    LOAD_DBC(sItemRandomSuffixStore,                "ItemRandomSuffix.dbc",                 "itemrandomsuffix_dbc");
-    LOAD_DBC(sItemSetStore,                         "ItemSet.dbc",                          "itemset_dbc");
-    LOAD_DBC(sLFGDungeonStore,                      "LFGDungeons.dbc",                      "lfgdungeons_dbc");
-    LOAD_DBC(sLightStore,                           "Light.dbc",                            "light_dbc");
-    LOAD_DBC(sLiquidTypeStore,                      "LiquidType.dbc",                       "liquidtype_dbc");
-    LOAD_DBC(sLockStore,                            "Lock.dbc",                             "lock_dbc");
-    LOAD_DBC(sMailTemplateStore,                    "MailTemplate.dbc",                     "mailtemplate_dbc");
-    LOAD_DBC(sMapStore,                             "Map.dbc",                              "map_dbc");
-    LOAD_DBC(sMapDifficultyStore,                   "MapDifficulty.dbc",                    "mapdifficulty_dbc");
-    LOAD_DBC(sMovieStore,                           "Movie.dbc",                            "movie_dbc");
-    LOAD_DBC(sNamesReservedStore,                   "NamesReserved.dbc",                    "namesreserved_dbc");
-    LOAD_DBC(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc");
-    LOAD_DBC(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc");
-    LOAD_DBC(sPowerDisplayStore,                    "PowerDisplay.dbc",                     "powerdisplay_dbc");
-    LOAD_DBC(sPvPDifficultyStore,                   "PvpDifficulty.dbc",                    "pvpdifficulty_dbc");
-    LOAD_DBC(sQuestXPStore,                         "QuestXP.dbc",                          "questxp_dbc");
-    LOAD_DBC(sQuestFactionRewardStore,              "QuestFactionReward.dbc",               "questfactionreward_dbc");
-    LOAD_DBC(sQuestSortStore,                       "QuestSort.dbc",                        "questsort_dbc");
-    LOAD_DBC(sRandomPropertiesPointsStore,          "RandPropPoints.dbc",                   "randproppoints_dbc");
-    LOAD_DBC(sScalingStatDistributionStore,         "ScalingStatDistribution.dbc",          "scalingstatdistribution_dbc");
-    LOAD_DBC(sScalingStatValuesStore,               "ScalingStatValues.dbc",                "scalingstatvalues_dbc");
-    LOAD_DBC(sSkillLineStore,                       "SkillLine.dbc",                        "skillline_dbc");
-    LOAD_DBC(sSkillLineAbilityStore,                "SkillLineAbility.dbc",                 "skilllineability_dbc");
-    LOAD_DBC(sSkillRaceClassInfoStore,              "SkillRaceClassInfo.dbc",               "skillraceclassinfo_dbc");
-    LOAD_DBC(sSkillTiersStore,                      "SkillTiers.dbc",                       "skilltiers_dbc");
-    LOAD_DBC(sSoundEntriesStore,                    "SoundEntries.dbc",                     "soundentries_dbc");
-    LOAD_DBC(sSpellStore,                           "Spell.dbc",                            "spell_dbc");
-    LOAD_DBC(sSpellCastTimesStore,                  "SpellCastTimes.dbc",                   "spellcasttimes_dbc");
-    LOAD_DBC(sSpellCategoryStore,                   "SpellCategory.dbc",                    "spellcategory_dbc");
-    LOAD_DBC(sSpellDifficultyStore,                 "SpellDifficulty.dbc",                  "spelldifficulty_dbc");
-    LOAD_DBC(sSpellDurationStore,                   "SpellDuration.dbc",                    "spellduration_dbc");
-    LOAD_DBC(sSpellFocusObjectStore,                "SpellFocusObject.dbc",                 "spellfocusobject_dbc");
-    LOAD_DBC(sSpellItemEnchantmentStore,            "SpellItemEnchantment.dbc",             "spellitemenchantment_dbc");
-    LOAD_DBC(sSpellItemEnchantmentConditionStore,   "SpellItemEnchantmentCondition.dbc",    "spellitemenchantmentcondition_dbc");
-    LOAD_DBC(sSpellRadiusStore,                     "SpellRadius.dbc",                      "spellradius_dbc");
-    LOAD_DBC(sSpellRangeStore,                      "SpellRange.dbc",                       "spellrange_dbc");
-    LOAD_DBC(sSpellRuneCostStore,                   "SpellRuneCost.dbc",                    "spellrunecost_dbc");
-    LOAD_DBC(sSpellShapeshiftFormStore,             "SpellShapeshiftForm.dbc",              "spellshapeshiftform_dbc");
-    LOAD_DBC(sSpellVisualStore,                     "SpellVisual.dbc",                      "spellvisual_dbc");
-    LOAD_DBC(sStableSlotPricesStore,                "StableSlotPrices.dbc",                 "stableslotprices_dbc");
-    LOAD_DBC(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc");
-    LOAD_DBC(sTalentStore,                          "Talent.dbc",                           "talent_dbc");
-    LOAD_DBC(sTalentTabStore,                       "TalentTab.dbc",                        "talenttab_dbc");
-    LOAD_DBC(sTaxiNodesStore,                       "TaxiNodes.dbc",                        "taxinodes_dbc");
-    LOAD_DBC(sTaxiPathStore,                        "TaxiPath.dbc",                         "taxipath_dbc");
-    LOAD_DBC(sTaxiPathNodeStore,                    "TaxiPathNode.dbc",                     "taxipathnode_dbc");
-    LOAD_DBC(sTeamContributionPointsStore,          "TeamContributionPoints.dbc",           "teamcontributionpoints_dbc");
-    LOAD_DBC(sTotemCategoryStore,                   "TotemCategory.dbc",                    "totemcategory_dbc");
-    LOAD_DBC(sTransportAnimationStore,              "TransportAnimation.dbc",               "transportanimation_dbc");
-    LOAD_DBC(sTransportRotationStore,               "TransportRotation.dbc",                "transportrotation_dbc");
-    LOAD_DBC(sVehicleStore,                         "Vehicle.dbc",                          "vehicle_dbc");
-    LOAD_DBC(sVehicleSeatStore,                     "VehicleSeat.dbc",                      "vehicleseat_dbc");
-    LOAD_DBC(sWMOAreaTableStore,                    "WMOAreaTable.dbc",                     "wmoareatable_dbc");
-    LOAD_DBC(sWorldMapAreaStore,                    "WorldMapArea.dbc",                     "worldmaparea_dbc");
-    LOAD_DBC(sWorldMapOverlayStore,                 "WorldMapOverlay.dbc",                  "worldmapoverlay_dbc");
-
+#define LOAD_DBC(store, file, dbtable) LoadDBC(availableDbcLocales, bad_dbc_files, store, dbcPath, file, dbtable, fromDatabase);
+    ACORE_DBC_STORES(LOAD_DBC)
 #undef LOAD_DBC
 
     for (uint32 i = 0; i < sAreaTableStore.GetNumRows(); ++i)    // areaflag numbered from 0

@@ -22,6 +22,7 @@
 #include "DBCStore.h"
 #include "DBCStructure.h"
 #include <list>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -207,5 +208,17 @@ extern AC_GAME_API DBCStorage <WMOAreaTableEntry>            sWMOAreaTableStore;
 extern AC_GAME_API DBCStorage <WorldMapOverlayEntry>         sWorldMapOverlayStore;
 
 void LoadDBCStores(std::string const& dataPath);
+
+// With DBC.FromDatabase the rows of every file come from its table in the world database instead
+// (file "Spell.dbc" -> table "dbc_spell": one column per format character, the index column named ID).
+struct DBCFileInfo
+{
+    char const* file;
+    char const* format;
+    char const* overrideTable;
+};
+
+AC_GAME_API std::vector<DBCFileInfo> const& GetDBCFiles();
+AC_GAME_API std::string GetDBCTableName(std::string_view file);
 
 #endif

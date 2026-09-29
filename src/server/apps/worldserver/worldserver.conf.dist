@@ -215,6 +215,15 @@ Database.SQLite.Synchronous = "NORMAL"
 DataDir = "."
 
 #
+#    DBC.FromDatabase
+#        Description: Load the DBC data from tables of the world database (dbc_areatable, dbc_spell, ...)
+#                     instead of the files in <DataDir>/dbc. The *_dbc override tables apply either way.
+#        Default:     0 - (Files)
+#                     1 - (World database)
+
+DBC.FromDatabase = 0
+
+#
 #    PluginsDir
 #        Description: Folder with plugins (one subfolder with a plugin.json each), loaded at start.
 #                     Relative paths start at the working directory.

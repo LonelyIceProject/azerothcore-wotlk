@@ -19,6 +19,7 @@
 #define DBCDatabaseLoader_h__
 
 #include "DBCFileLoader.h"
+#include <string_view>
 #include <vector>
 
 struct DBCDatabaseLoader
@@ -33,7 +34,7 @@ private:
     int32 _sqlIndexPos;
     uint32 _recordSize;
     std::vector<char*>& _stringPool;
-    char* CloneStringToPool(std::string const& str);
+    char* CloneStringToPool(std::string_view str);
 
     DBCDatabaseLoader(DBCDatabaseLoader const& right) = delete;
     DBCDatabaseLoader& operator=(DBCDatabaseLoader const& right) = delete;
