@@ -411,7 +411,8 @@ uint16 holes[ADT_CELLS_PER_GRID][ADT_CELLS_PER_GRID];
 int16 flight_box_max[3][3];
 int16 flight_box_min[3][3];
 
-bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int /*cell_y*/, int /*cell_x*/, uint32 build)
+// Builds the .map image of one ADT into output.
+bool ConvertADT(std::string const& inputPath, std::vector<char>& output, uint32 build)
 {
     ADT_file adt;
 
@@ -909,68 +910,75 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     }
 
     // Ok all data prepared - store it
-    FILE* output = fopen(outputPath.c_str(), "wb");
-    if (!output)
+    output.clear();
+    auto Write = [&output](void const* data, std::size_t size)
     {
-        printf("Can't create the output file '%s'\n", outputPath.c_str());
-        return false;
-    }
-    fwrite(&map, sizeof(map), 1, output);
+        char const* bytes = static_cast<char const*>(data);
+        output.insert(output.end(), bytes, bytes + size);
+    };
+    Write(&map, sizeof(map));
     // Store area data
-    fwrite(&areaHeader, sizeof(areaHeader), 1, output);
+    Write(&areaHeader, sizeof(areaHeader));
     if (!(areaHeader.flags & MAP_AREA_NO_AREA))
-        fwrite(area_ids, sizeof(area_ids), 1, output);
+        Write(area_ids, sizeof(area_ids));
 
     // Store height data
-    fwrite(&heightHeader, sizeof(heightHeader), 1, output);
+    Write(&heightHeader, sizeof(heightHeader));
     if (!(heightHeader.flags & MAP_HEIGHT_NO_HEIGHT))
     {
         if (heightHeader.flags & MAP_HEIGHT_AS_INT16)
         {
-            fwrite(uint16_V9, sizeof(uint16_V9), 1, output);
-            fwrite(uint16_V8, sizeof(uint16_V8), 1, output);
+            Write(uint16_V9, sizeof(uint16_V9));
+            Write(uint16_V8, sizeof(uint16_V8));
         }
         else if (heightHeader.flags & MAP_HEIGHT_AS_INT8)
         {
-            fwrite(uint8_V9, sizeof(uint8_V9), 1, output);
-            fwrite(uint8_V8, sizeof(uint8_V8), 1, output);
+            Write(uint8_V9, sizeof(uint8_V9));
+            Write(uint8_V8, sizeof(uint8_V8));
         }
         else
         {
-            fwrite(V9, sizeof(V9), 1, output);
-            fwrite(V8, sizeof(V8), 1, output);
+            Write(V9, sizeof(V9));
+            Write(V8, sizeof(V8));
         }
     }
 
     if (heightHeader.flags & MAP_HEIGHT_HAS_FLIGHT_BOUNDS)
     {
-        fwrite(flight_box_max, sizeof(flight_box_max), 1, output);
-        fwrite(flight_box_min, sizeof(flight_box_min), 1, output);
+        Write(flight_box_max, sizeof(flight_box_max));
+        Write(flight_box_min, sizeof(flight_box_min));
     }
 
     // Store liquid data if need
     if (map.liquidMapOffset)
     {
-        fwrite(&liquidHeader, sizeof(liquidHeader), 1, output);
+        Write(&liquidHeader, sizeof(liquidHeader));
         if (!(liquidHeader.flags & MAP_LIQUID_NO_TYPE))
         {
-            fwrite(liquid_entry, sizeof(liquid_entry), 1, output);
-            fwrite(liquid_flags, sizeof(liquid_flags), 1, output);
+            Write(liquid_entry, sizeof(liquid_entry));
+            Write(liquid_flags, sizeof(liquid_flags));
         }
         if (!(liquidHeader.flags & MAP_LIQUID_NO_HEIGHT))
         {
             for (int y = 0; y < liquidHeader.height; y++)
-                fwrite(&liquid_height[y + liquidHeader.offsetY][liquidHeader.offsetX], sizeof(float), liquidHeader.width, output);
+                Write(&liquid_height[y + liquidHeader.offsetY][liquidHeader.offsetX], sizeof(float) * liquidHeader.width);
         }
     }
 
     // store hole data
     if (hasHoles)
-        fwrite(holes, map.holesSize, 1, output);
-
-    fclose(output);
+        Write(holes, map.holesSize);
 
     return true;
+}
+
+bool WriteFile(std::string const& path, std::vector<char> const& data)
+{
+    FILE* output = fopen(path.c_str(), "wb");
+    if (!output)
+        return false;
+    bool const written = fwrite(data.data(), 1, data.size(), output) == data.size();
+    return fclose(output) == 0 && written;
 }
 
 void ExtractMapsFromMpq(uint32 build)
@@ -1010,7 +1018,9 @@ void ExtractMapsFromMpq(uint32 build)
                     continue;
                 mpqFileName = Acore::StringFormat(R"(World\Maps\{}\{}_{}_{}.adt)", map_ids[z].name, map_ids[z].name, x, y);
                 outputFileName = Acore::StringFormat("{}/maps/{:03}{:02}{:02}.map", output_path, map_ids[z].id, y, x);
-                ConvertADT(mpqFileName, outputFileName, y, x, build);
+                std::vector<char> image;
+                if (ConvertADT(mpqFileName, image, build) && !WriteFile(outputFileName, image))
+                    printf("Can't create the output file '%s'\n", outputFileName.c_str());
             }
             // draw progress bar
             printf("Processing........................%d%%\r", (100 * (y + 1)) / WDT_MAP_SIZE);
