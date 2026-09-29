@@ -1,4 +1,5 @@
 #include "GridTerrainLoader.h"
+#include "DataFileSource.h"
 #include "IVMapMgr.h"
 #include "Map.h"
 #include "MMapMgr.h"
@@ -28,7 +29,7 @@ void GridTerrainLoader::LoadMap()
     }
 
     // map file name
-    std::string const mapFileName = Acore::StringFormat("{}maps/{:03}{:02}{:02}.map", sWorld->GetDataPath(), _map->GetId(), _grid.GetX(), _grid.GetY());
+    std::string const mapFileName = Acore::StringFormat("maps/{:03}{:02}{:02}.map", _map->GetId(), _grid.GetX(), _grid.GetY());
 
     // loading data
     LOG_DEBUG("maps", "Loading map {}", mapFileName);
@@ -93,20 +94,21 @@ void GridTerrainLoader::LoadMMap()
 
 bool GridTerrainLoader::ExistMap(uint32 mapid, int gx, int gy)
 {
-    std::string const mapFileName = Acore::StringFormat("{}maps/{:03}{:02}{:02}.map", sWorld->GetDataPath(), mapid, gx, gy);
-    std::ifstream fileStream(mapFileName, std::ios::binary);
-    if (fileStream.fail())
+    std::string const mapFileName = Acore::StringFormat("maps/{:03}{:02}{:02}.map", mapid, gx, gy);
+    std::optional<std::vector<char>> data = DataFiles::Read(mapFileName);
+    if (!data)
     {
         LOG_DEBUG("maps", "Map file '{}': error opening file", mapFileName);
         return false;
     }
 
     map_fileheader header;
-    if (!fileStream.read(reinterpret_cast<char*>(&header), sizeof(header)))
+    if (data->size() < sizeof(header))
     {
         LOG_DEBUG("maps", "Map file '{}': unable to read header", mapFileName);
         return false;
     }
+    std::memcpy(&header, data->data(), sizeof(header));
 
     if (header.mapMagic != MapMagic.asUInt || header.versionMagic != MapVersionMagic)
     {

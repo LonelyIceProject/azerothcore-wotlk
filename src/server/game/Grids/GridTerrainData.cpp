@@ -1,9 +1,10 @@
 #include "DBCStores.h"
+#include "DataFileSource.h"
 #include "GridDefines.h"
 #include "GridTerrainData.h"
 #include "Log.h"
 #include "MapDefines.h"
-#include <filesystem>
+#include <sstream>
 #include <G3D/Ray.h>
 
 uint16 const holetab_h[4] = { 0x1111, 0x2222, 0x4444, 0x8888 };
@@ -16,15 +17,11 @@ GridTerrainData::GridTerrainData()
 
 TerrainMapDataReadResult GridTerrainData::Load(std::string const& mapFileName)
 {
-    // Check if file exists, we do this first as we need to
-    // differentiate between file existing and any other file errors
-    if (!std::filesystem::exists(mapFileName))
+    std::optional<std::vector<char>> data = DataFiles::Read(mapFileName);
+    if (!data)
         return TerrainMapDataReadResult::NotFound;
 
-    // Start the input stream and check for any errors
-    std::ifstream fileStream(mapFileName, std::ios::binary);
-    if (fileStream.fail())
-        return TerrainMapDataReadResult::ReadError;
+    std::istringstream fileStream(std::string(data->data(), data->size()), std::ios::binary);
 
     // Read the map header
     map_fileheader header;
@@ -54,7 +51,7 @@ TerrainMapDataReadResult GridTerrainData::Load(std::string const& mapFileName)
     return TerrainMapDataReadResult::Success;
 }
 
-bool GridTerrainData::LoadAreaData(std::ifstream& fileStream, uint32 const offset)
+bool GridTerrainData::LoadAreaData(std::istream& fileStream, uint32 const offset)
 {
     fileStream.seekg(offset);
 
@@ -73,7 +70,7 @@ bool GridTerrainData::LoadAreaData(std::ifstream& fileStream, uint32 const offse
     return true;
 }
 
-bool GridTerrainData::LoadHeightData(std::ifstream& fileStream, uint32 const offset)
+bool GridTerrainData::LoadHeightData(std::istream& fileStream, uint32 const offset)
 {
     fileStream.seekg(offset);
 
@@ -163,7 +160,7 @@ bool GridTerrainData::LoadHeightData(std::ifstream& fileStream, uint32 const off
     return true;
 }
 
-bool GridTerrainData::LoadLiquidData(std::ifstream& fileStream, uint32 const offset)
+bool GridTerrainData::LoadLiquidData(std::istream& fileStream, uint32 const offset)
 {
     fileStream.seekg(offset);
 
@@ -200,7 +197,7 @@ bool GridTerrainData::LoadLiquidData(std::ifstream& fileStream, uint32 const off
     return true;
 }
 
-bool GridTerrainData::LoadHolesData(std::ifstream& fileStream, uint32 const offset)
+bool GridTerrainData::LoadHolesData(std::istream& fileStream, uint32 const offset)
 {
     fileStream.seekg(offset);
 

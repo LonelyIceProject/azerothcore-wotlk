@@ -220,10 +220,10 @@ enum class TerrainMapDataReadResult
 
 class GridTerrainData
 {
-    bool LoadAreaData(std::ifstream& fileStream, uint32 const offset);
-    bool LoadHeightData(std::ifstream& fileStream, uint32 const offset);
-    bool LoadLiquidData(std::ifstream& fileStream, uint32 const offset);
-    bool LoadHolesData(std::ifstream& fileStream, uint32 const offset);
+    bool LoadAreaData(std::istream& fileStream, uint32 const offset);
+    bool LoadHeightData(std::istream& fileStream, uint32 const offset);
+    bool LoadLiquidData(std::istream& fileStream, uint32 const offset);
+    bool LoadHolesData(std::istream& fileStream, uint32 const offset);
 
     std::unique_ptr<LoadedAreaData> _loadedAreaData;
     std::unique_ptr<LoadedHeightData> _loadedHeightData;
@@ -243,6 +243,7 @@ class GridTerrainData
 public:
     GridTerrainData();
     ~GridTerrainData() { };
+    // mapFileName relative to DataDir ("maps/0003248.map"), read through DataFiles
     TerrainMapDataReadResult Load(std::string const& mapFileName);
 
     uint16 getArea(float x, float y) const;
