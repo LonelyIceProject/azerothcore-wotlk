@@ -34,8 +34,8 @@ struct PluginInfo
     std::filesystem::path library;                       // empty: no server code
     std::string abi;                                     // core.abi the library was built for
     std::vector<std::string> apps;                       // programs that load the plugin (server.apps)
-    std::string configFile;                              // file name looked up in configs/modules
-    std::filesystem::path configDist;                    // fallback inside the plugin folder
+    std::string configFile;                              // file name looked up in the modules config folder
+    std::filesystem::path configDist;                    // defaults inside the plugin folder, loaded first
     std::vector<std::pair<std::string, std::filesystem::path>> databases;   // core database -> update folder
     std::map<std::string, std::string> depends;          // id -> version range
     std::vector<std::string> conflicts;

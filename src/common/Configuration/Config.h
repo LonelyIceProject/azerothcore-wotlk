@@ -55,7 +55,8 @@ public:
 
     static ConfigMgr* instance();
 
-    // Config of a plugin loaded at run time: configs/modules/<fileName>, or distPath when that file is missing.
+    // Config of a plugin loaded at run time: distPath is loaded first, then <modules config path>/<fileName>
+    // (when present) overrides it key by key.
     void AddPluginConfig(std::string const& fileName, std::string const& distPath);
 
     bool Reload();
@@ -65,6 +66,8 @@ public:
 
     std::string const GetFilename();
     std::string const GetConfigPath();
+    /// "modules" folder beside the loaded main config file, or GetConfigPath() + "modules/" when there is none
+    std::string const GetModulesConfigPath();
     [[nodiscard]] std::vector<std::string> const& GetArguments() const;
     std::vector<std::string> GetKeysByString(std::string const& name);
 

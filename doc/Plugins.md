@@ -136,7 +136,10 @@ At start worldserver, authserver and dbimport (`PluginsDir` in their configs)
 2. order the plugins so that dependencies come first;
 3. load each library (Windows: `LoadLibraryEx`, searching the plugin's folder for the DLLs it needs;
    Linux and macOS: `dlopen` with `RTLD_NOW | RTLD_GLOBAL`) and check ABI and platform;
-4. add the plugin's config: `configs/modules/<name>.conf` when it exists, else the `.dist` from the plugin;
+4. add the plugin's config: the `.dist` from the plugin is loaded first, then `modules/<name>.conf` (the file
+   name of `config` without `.dist`), when it exists, overrides it key by key. The `modules` folder is the one
+   beside the main config file the program loaded (`-c`), or `modules` in the default config directory when
+   there is no such folder;
 5. add the plugin's SQL folders to the database updater (state `MODULE`, same rules as module SQL);
 6. run the plugin's `onLoad`;
 7. worldserver registers the plugin's scripts after the static modules' scripts.

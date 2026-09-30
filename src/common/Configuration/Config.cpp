@@ -714,6 +714,18 @@ std::string const ConfigMgr::GetConfigPath()
 #endif
 }
 
+std::string const ConfigMgr::GetModulesConfigPath()
+{
+    // Module configs are looked up in a "modules" folder beside the main config file that was loaded,
+    // so a server started with "-c <dir>/worldserver.conf" reads <dir>/modules. The default config dir is the fallback.
+    std::error_code ec;
+    std::filesystem::path const dir = std::filesystem::path(GetFilename()).parent_path() / "modules";
+    if (std::filesystem::is_directory(dir, ec))
+        return dir.generic_string() + "/";
+
+    return GetConfigPath() + "modules/";
+}
+
 void ConfigMgr::Configure(std::string const& initFileName, std::vector<std::string> args, std::string_view modulesConfigList /*= {}*/, ConfigPolicy policy /*= {}*/)
 {
     _filename = initFileName;
@@ -770,7 +782,7 @@ bool ConfigMgr::LoadModulesConfigs(bool isReload /*= false*/, bool isNeedPrintIn
     }
 
     // Start loading module configs
-    std::string const& moduleConfigPath = GetConfigPath() + "modules/";
+    std::string const moduleConfigPath = GetModulesConfigPath();
 
     for (auto const& fileName : _additonalFiles)
     {
@@ -780,7 +792,7 @@ bool ConfigMgr::LoadModulesConfigs(bool isReload /*= false*/, bool isNeedPrintIn
             _moduleConfigFiles.emplace_back(fileName);
     }
 
-    // A plugin's .dist declares its options, configs/modules/<file> then overrides them.
+    // A plugin's .dist declares its options, modules/<file> then overrides them key by key.
     for (auto const& [fileName, distPath] : _pluginConfigs)
     {
         std::error_code ec;
