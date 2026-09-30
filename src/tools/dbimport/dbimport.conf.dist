@@ -7,7 +7,7 @@
 #
 #    EXAMPLE CONFIG
 #    DB IMPORT CONFIG
-#    MYSQL SETTINGS
+#    DATABASE SETTINGS
 #    UPDATE SETTINGS
 #    LOGGING SYSTEM SETTINGS
 #
@@ -73,29 +73,35 @@ TempDir = ""
 ###################################################################################################
 
 ###################################################################################################
-# MYSQL SETTINGS
+# DATABASE SETTINGS
 #
 #    LoginDatabaseInfo
 #    WorldDatabaseInfo
 #    CharacterDatabaseInfo
 #        Description: Database connection settings for the world server.
-#        Example:     "hostname;port;username;password;database"
+#        Example:     "sqlite:path/to/file.sqlite" - (SQLite database file, relative paths are
+#                                                    resolved from the working directory. Use the
+#                                                    same files as the servers)
+#                     "hostname;port;username;password;database"
 #                     ".;somenumber;username;password;database" - (Use named pipes on Windows
 #                                                                 "enable-named-pipe" to [mysqld]
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database;ssl" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
+#                     A string without a "sqlite:" prefix (or with a "mysql:" prefix) is a MySQL
+#                     connection string; MySQL needs a plugin providing that backend in PluginsDir,
+#                     e.g. "127.0.0.1;3306;acore;acore;acore_world".
+#        Default:     "sqlite:db/auth.sqlite"       - (LoginDatabaseInfo)
+#                     "sqlite:db/world.sqlite"      - (WorldDatabaseInfo)
+#                     "sqlite:db/characters.sqlite" - (CharacterDatabaseInfo)
 #
-#    The SSL option will enable TLS when connecting to the specified database. If not provided or
-#    any value other than 'ssl' is set, TLS will not be used.
+#    The SSL option of a MySQL connection string will enable TLS when connecting to the specified
+#    database. If not provided or any value other than 'ssl' is set, TLS will not be used.
 #
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+LoginDatabaseInfo     = "sqlite:db/auth.sqlite"
+WorldDatabaseInfo     = "sqlite:db/world.sqlite"
+CharacterDatabaseInfo = "sqlite:db/characters.sqlite"
 
 #
 #    Database.Reconnect.Seconds

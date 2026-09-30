@@ -8,7 +8,7 @@
 #
 #    EXAMPLE CONFIG
 #    AUTH SERVER SETTINGS
-#    MYSQL SETTINGS
+#    DATABASE SETTINGS
 #    CRYPTOGRAPHY
 #    UPDATE SETTINGS
 #    LOGGING SYSTEM SETTINGS
@@ -215,24 +215,25 @@ AllowLoggingIPAddressesInDatabase = 1
 ###################################################################################################
 
 ###################################################################################################
-# MYSQL SETTINGS
+# DATABASE SETTINGS
 #
 #    LoginDatabaseInfo
 #        Description: Database connection settings for the realm server.
-#        Example:     "hostname;port;username;password;database"
+#        Example:     "sqlite:db/auth.sqlite" - (SQLite database file, relative paths are resolved
+#                                               from the working directory of the server. Use the
+#                                               same file as the world server)
+#                     "hostname;port;username;password;database"
 #                     ".;somenumber;username;password;database" - (Use named pipes on Windows
 #                                                                 "enable-named-pipe" to [mysqld]
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#                     "sqlite:db/auth.sqlite" - (SQLite database file, relative paths are resolved
-#                                               from the working directory of the server. Use the
-#                                               same file as the world server)
 #                     A string without a "sqlite:" prefix (or with a "mysql:" prefix) is a MySQL
-#                     connection string; MySQL needs a plugin providing that backend in PluginsDir.
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"
+#                     connection string; MySQL needs a plugin providing that backend in PluginsDir,
+#                     e.g. "127.0.0.1;3306;acore;acore;acore_auth".
+#        Default:     "sqlite:db/auth.sqlite"
 
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"
+LoginDatabaseInfo = "sqlite:db/auth.sqlite"
 
 #
 #    Database.Reconnect.Seconds

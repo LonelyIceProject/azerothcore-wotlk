@@ -27,9 +27,9 @@
 namespace
 {
     std::string const EMPTY_DATABASE_INFO;
-    std::string const LOGIN_DATABASE_INFO_DEFAULT = "127.0.0.1;3306;acore;acore;acore_auth";
-    std::string const WORLD_DATABASE_INFO_DEFAULT = "127.0.0.1;3306;acore;acore;acore_world";
-    std::string const CHARACTER_DATABASE_INFO_DEFAULT = "127.0.0.1;3306;acore;acore;acore_characters";
+    std::string const LOGIN_DATABASE_INFO_DEFAULT = "sqlite:db/auth.sqlite";
+    std::string const WORLD_DATABASE_INFO_DEFAULT = "sqlite:db/world.sqlite";
+    std::string const CHARACTER_DATABASE_INFO_DEFAULT = "sqlite:db/characters.sqlite";
     std::string const& GetDefaultDatabaseInfo(std::string_view name)
     {
         if (name == "Login")
