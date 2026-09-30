@@ -20,6 +20,7 @@
 #include "PluginApi.h"
 #include "Log.h"
 #include "UpdateFetcher.h"
+#include "VersionRange.h"
 #include <algorithm>
 #include <fstream>
 #include <functional>
@@ -54,29 +55,6 @@ namespace
     std::string Str(fkyaml::node const& root, char const* key)
     {
         return root.contains(key) && root[key].is_string() ? root[key].get_value<std::string>() : std::string();
-    }
-
-    std::vector<int> ParseVersion(std::string const& v)
-    {
-        std::vector<int> parts;
-        std::stringstream ss(v);
-        std::string part;
-        while (std::getline(ss, part, '.'))
-            parts.push_back(part.empty() || part == "x" || part == "*" ? -1 : std::atoi(part.c_str()));
-        while (parts.size() < 3)
-            parts.push_back(-1);
-        return parts;
-    }
-
-    int Compare(std::vector<int> const& a, std::vector<int> const& b)
-    {
-        for (std::size_t i = 0; i < 3; ++i)
-        {
-            int x = std::max(a[i], 0), y = std::max(b[i], 0);
-            if (x != y)
-                return x < y ? -1 : 1;
-        }
-        return 0;
     }
 
     std::string LibraryFile(std::string const& base)
@@ -135,45 +113,7 @@ PluginMgr* PluginMgr::instance()
 
 bool PluginMgr::Satisfies(std::string const& version, std::string const& range)
 {
-    std::vector<int> v = ParseVersion(version);
-    std::stringstream ss(range);
-    std::string term;
-    while (ss >> term)
-    {
-        if (term == "*")
-            continue;
-        std::string op;
-        while (!term.empty() && std::string("<>=^~").find(term[0]) != std::string::npos)
-        {
-            op += term[0];
-            term.erase(0, 1);
-        }
-        std::vector<int> r = ParseVersion(term);
-        int c = Compare(v, r);
-        bool ok = true;
-        if (op == ">=")
-            ok = c >= 0;
-        else if (op == ">")
-            ok = c > 0;
-        else if (op == "<=")
-            ok = c <= 0;
-        else if (op == "<")
-            ok = c < 0;
-        else if (op == "^")
-            ok = c >= 0 && v[0] == std::max(r[0], 0) && (r[0] > 0 || v[1] == std::max(r[1], 0));
-        else if (op == "~")
-            ok = c >= 0 && v[0] == std::max(r[0], 0) && v[1] == std::max(r[1], 0);
-        else
-        {
-            // "1.2.3" exact, "1.2" / "1.2.x" any patch of 1.2
-            for (std::size_t i = 0; i < 3 && ok; ++i)
-                if (r[i] >= 0 && v[i] != r[i])
-                    ok = false;
-        }
-        if (!ok)
-            return false;
-    }
-    return true;
+    return Acore::VersionRange::Satisfies(version, range);
 }
 
 bool PluginMgr::ReadManifest(fs::path const& dir, PluginInfo& info)
@@ -382,7 +322,9 @@ void PluginMgr::Load(fs::path const& dir, std::vector<std::string> const& apps)
             for (auto const& [dep, range] : it->second.depends)
             {
                 auto d = found.find(dep);
-                if (d == found.end())
+                if (std::string bad; !Acore::VersionRange::IsValid(range, &bad))
+                    why = "cannot read the version range '" + range + "' of " + dep + " (at '" + bad + "')";
+                else if (d == found.end())
                     why = "needs " + dep + " " + range;
                 else if (!Satisfies(d->second.version, range))
                     why = "needs " + dep + " " + range + ", installed " + d->second.version;

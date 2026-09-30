@@ -57,7 +57,7 @@ A folder may carry builds for several platforms; the loader uses `server/<platfo
 | `version` | Semantic version. |
 | `name` | Display name: a string, or an object of locale → string with an `en` entry. |
 | `core.abi` | `AC_PLUGIN_ABI` the library was built with. Required with `server`. |
-| `depends` | id → version range: `1.2.3`, `1.2.x`, `>=1.2 <2`, `^1.2`, `~1.2.3`, `*`. |
+| `depends` | id → version range, read as npm's semver reads it (`VersionRange.h`): comparators separated by spaces and/or commas, all of which must hold: `1.2.3`, `1.2.x`, `>=1.2 <2`, `>=1.2.0,<2.0.0`, `^1.2`, `~1.2.3`, `*`. A range that cannot be read (`||`, hyphen ranges, pre-release versions, unknown operators) skips the plugin. |
 | `conflicts` | ids that must not be installed together with this plugin. |
 | `server.library` | Base name of the library; the loader adds `.dll`, `lib*.so` or `lib*.dylib`. |
 | `server.apps` | Programs that load the plugin: `worldserver`, `authserver`, `dbimport`. Default `["worldserver"]`. |
