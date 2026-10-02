@@ -345,6 +345,34 @@ void PluginMgr::Load(fs::path const& dir, std::vector<std::string> const& apps)
         }
     }
 
+    // Detect cycles before loading any library; dependents of a cycle are rejected too.
+    std::set<std::string> visiting;
+    std::map<std::string, bool> acyclic;
+    std::function<bool(std::string const&)> checkCycle = [&](std::string const& id)
+    {
+        if (auto it = acyclic.find(id); it != acyclic.end())
+            return it->second;
+        if (!visiting.insert(id).second)
+            return false;
+        bool valid = true;
+        for (auto const& [dep, range] : found.at(id).depends)
+            if (!checkCycle(dep))
+                valid = false;
+        visiting.erase(id);
+        acyclic[id] = valid;
+        return valid;
+    };
+    for (auto const& [id, info] : found)
+        checkCycle(id);
+    for (auto it = found.begin(); it != found.end();)
+        if (!acyclic.at(it->first))
+        {
+            LOG_ERROR("server.loading", "Plugin {} skipped: dependency cycle", it->first);
+            it = found.erase(it);
+        }
+        else
+            ++it;
+
     // Dependencies first, ties by id.
     std::set<std::string> placed;
     std::function<void(std::string const&)> place = [&](std::string const& id)
